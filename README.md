@@ -2,7 +2,7 @@
 
 ## Author
 
-- Oleh (working alone, agreed with the teacher)
+* Oleh (working alone)
 
 ## Topic
 
@@ -18,22 +18,22 @@ The phone works over a wireless network that can be slow or drop.
 
 ## Components
 
-| Component | Role |
-| --- | --- |
-| Mobile app | Shows rates, converts amounts, sends buy/sell orders, keeps a local cache of the last rates. |
-| Web service (backend) | Exposes a REST API to the app, fetches rates from NBP, validates and executes orders, stores wallets. |
-| Database | Stores users, wallet balances, transactions, and a copy of the latest rates with their date. |
-| External data source | NBP API, `https://api.nbp.pl/api/exchangerates/` (table A, mid rates, published once per working day). |
+|Component|Role|
+|-|-|
+|Mobile app|Shows rates, converts amounts, sends buy/sell orders, keeps a local cache of the last rates.|
+|Web service (backend)|Exposes a REST API to the app, fetches rates from NBP, validates and executes orders, stores wallets.|
+|Database|Stores users, wallet balances, transactions, and a copy of the latest rates with their date.|
+|External data source|NBP API, `https://api.nbp.pl/api/exchangerates/` (table A, mid rates, published once per working day).|
 
 ## Technology choices
 
-| Part | Choice | Why |
-| --- | --- | --- |
-| Mobile app | Flutter (Dart) *or* Android with Kotlin | One codebase, easy HTTP and local storage. |
-| Web service | Python + FastAPI | Short code, automatic API docs. |
-| Database | SQLite (dev), PostgreSQL (later, optional) | No setup to start. |
-| Local cache on phone | SQLite / shared preferences | Show last rates when offline. |
-| Version control | Git + GitHub | Required. |
+|Part|Choice|Why|
+|-|-|-|
+|Mobile app|Flutter (Dart) *or* Android with Kotlin|One codebase, easy HTTP and local storage.|
+|Web service|Python + FastAPI|Short code, automatic API docs.|
+|Database|SQLite (dev), PostgreSQL (later, optional)|No setup to start.|
+|Local cache on phone|SQLite / shared preferences|Show last rates when offline.|
+|Version control|Git + GitHub|Required.|
 
 (Change these if you already know something else; just keep the reason.)
 
@@ -61,3 +61,4 @@ mobile/                  mobile app
 8. Handling connectivity problems (cache, retries, idempotent orders)
 9. Tests
 10. Known limitations
+
