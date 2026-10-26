@@ -1,0 +1,61 @@
+@startuml classes-mobile
+skinparam monochrome true
+skinparam shadowing false
+hide empty members
+title Mobile app
+
+class RatesScreen {
+  +showRates(list)
+  +showCachedLabel(date)
+}
+class WalletScreen {
+  +showBalances(wallet, lastKnown)
+}
+class OrderScreen {
+  +submitOrder(side, currency, amount)
+  +showStatus(status)
+  +disableWhenOffline()
+}
+class ApiClient {
+  -token
+  -timeout = 10s
+  +getRates()
+  +getWallet()
+  +postOrder(order)
+  +getOrderStatus(requestId)
+}
+class LocalCache {
+  +saveRates(rates, date)
+  +loadRates()
+  +saveWallet(wallet)
+  +loadWallet()
+}
+class ConnectivityMonitor {
+  +isOnline()
+  +onReconnect(callback)
+}
+class PendingOrders {
+  +add(order)
+  +markConfirmed(id)
+  +markRejected(id)
+  +unknownOnes()
+}
+class Order {
+  requestId : UUID
+  side : BUY / SELL
+  currency : String
+  amount : Decimal
+  seenRate : Decimal
+  status : PENDING / UNKNOWN / CONFIRMED / REJECTED
+}
+
+RatesScreen --> ApiClient
+RatesScreen --> LocalCache
+WalletScreen --> ApiClient
+WalletScreen --> LocalCache
+OrderScreen --> ApiClient
+OrderScreen --> ConnectivityMonitor
+OrderScreen --> PendingOrders
+PendingOrders o-- "0..*" Order
+ConnectivityMonitor ..> PendingOrders : on reconnect\ncheck UNKNOWN
+@enduml

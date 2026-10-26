@@ -1,0 +1,62 @@
+@startuml classes-server
+skinparam monochrome true
+skinparam shadowing false
+hide empty members
+title Web service
+
+class AuthController {
+  POST /auth/register
+  POST /auth/login
+}
+class RatesController {
+  GET /rates
+}
+class OrdersController {
+  POST /orders
+  GET /orders/{requestId}
+}
+class WalletController {
+  GET /wallet
+}
+class AuthService {
+  +register(email, password)
+  +login(email, password)
+  +checkToken(token) : userId
+}
+class RateService {
+  +currentRates()
+  -refreshIfOld()
+}
+class NbpClient {
+  +fetchTableA()
+}
+class OrderService <<decides success>> {
+  +execute(userId, order)
+  +status(userId, requestId)
+  -validate(order)
+}
+class WalletRepository {
+  +balances(userId)
+  +applyAtomically(userId, changes)
+}
+class OrderRepository {
+  +findByRequestId(id)
+  +save(order)
+}
+class RateRepository {
+  +latest()
+  +save(rates, date)
+}
+
+AuthController --> AuthService
+RatesController --> RateService
+OrdersController --> AuthService
+OrdersController --> OrderService
+WalletController --> AuthService
+WalletController --> WalletRepository
+RateService --> RateRepository
+RateService --> NbpClient
+OrderService --> RateService
+OrderService --> WalletRepository
+OrderService --> OrderRepository
+@enduml

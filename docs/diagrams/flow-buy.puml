@@ -1,0 +1,31 @@
+@startuml flow-buy
+skinparam monochrome true
+skinparam shadowing false
+title Data-changing action: buy 100 EUR
+
+participant "Mobile app" as App
+participant "Wireless link" as Net
+participant "Web service" as API
+participant "AuthService" as Auth
+participant "OrderService\n(decides)" as Ord
+database "Database" as DB
+
+App -> App : online? (offline = blocked)
+App -> App : new requestId, save as PENDING
+App -> Net : POST /orders (requestId, BUY, EUR, 100, seenRate) + token
+Net -> API : POST /orders
+API -> Auth : checkToken
+Auth --> API : userId
+API -> Ord : execute(userId, order)
+Ord -> DB : requestId already saved?
+alt yes (a repeat)
+  DB --> Ord : old result
+else no
+  Ord -> Ord : check amount, rate, PLN balance
+  Ord -> DB : one DB transaction:\nupdate balances + save order
+end
+Ord --> API : CONFIRMED or REJECTED (reason)
+API --> Net : result
+Net --> App : result
+App -> App : mark order, refresh wallet
+@enduml

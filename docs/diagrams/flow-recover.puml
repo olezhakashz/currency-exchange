@@ -1,0 +1,27 @@
+@startuml flow-recover
+skinparam monochrome true
+skinparam shadowing false
+title Lost reply: finding the real result after reconnect
+
+participant "Mobile app" as App
+participant "Wireless link" as Net
+participant "Web service" as API
+participant "OrderService" as Ord
+database "Database" as DB
+
+App -> Net : POST /orders (requestId = abc)
+Net -> API : POST /orders
+API -> Ord : execute
+Ord -> DB : save order abc = CONFIRMED
+API -->x Net : reply lost
+App -> App : 10 s timeout\nabc = UNKNOWN\nshow "Checking order..."
+... connection is gone, buttons blocked ...
+App -> App : reconnected
+App -> Net : GET /orders/abc
+Net -> API : GET /orders/abc
+API -> Ord : status(userId, abc)
+Ord -> DB : find abc
+DB --> Ord : CONFIRMED
+Ord --> App : CONFIRMED\n(or NOT_FOUND if POST never arrived)
+App -> App : show "Confirmed"\n(or "Not executed, try again")
+@enduml

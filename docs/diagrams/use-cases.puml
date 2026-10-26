@@ -1,0 +1,39 @@
+@startuml use-cases
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+
+actor User
+actor "NBP API" as NBP <<external>>
+
+rectangle "Currency Exchange" {
+  usecase "Log in / register" as UC1
+  usecase "See current rates" as UC2
+  usecase "Convert amount" as UC4
+  usecase "See wallet" as UC5
+  usecase "Buy currency" as UC7
+  usecase "Sell currency" as UC8
+  usecase "Check order status" as UC10
+  usecase "Get rates from NBP" as UC11
+  usecase "Check token" as AUTH
+  usecase "Validate order" as VAL
+}
+
+User --> UC1
+User --> UC2
+User --> UC4
+User --> UC5
+User --> UC7
+User --> UC8
+
+UC5 ..> AUTH : <<include>>
+UC7 ..> AUTH : <<include>>
+UC8 ..> AUTH : <<include>>
+UC7 ..> VAL : <<include>>
+UC8 ..> VAL : <<include>>
+UC10 ..> UC7 : <<extend>>
+UC10 ..> UC8 : <<extend>>
+UC2 ..> UC11 : <<include>>
+UC11 --> NBP
+@enduml
+

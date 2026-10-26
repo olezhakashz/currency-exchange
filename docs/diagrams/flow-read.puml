@@ -1,0 +1,28 @@
+@startuml flow-read
+skinparam monochrome true
+skinparam shadowing false
+title Normal read: see current rates
+
+participant "Mobile app" as App
+participant "Wireless link" as Net
+participant "Web service" as API
+database "Database" as DB
+box "outside our system" #White
+participant "NBP API" as NBP
+end box
+
+App -> Net : GET /rates
+Net -> API : GET /rates
+API -> DB : latest saved rates
+alt saved rates are from the newest NBP day
+  DB --> API : rates + date
+else saved rates are old
+  API -> NBP : GET table A
+  NBP --> API : rates + date
+  API -> DB : save copy
+end
+API --> Net : rates + date
+Net --> App : rates + date
+App -> App : save to cache, show with date
+note over App : no connection or timeout:\nshow cached rates with\n"cached" label
+@enduml
