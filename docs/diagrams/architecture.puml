@@ -1,0 +1,26 @@
+@startuml architecture
+skinparam monochrome true
+skinparam shadowing false
+title Architecture and data owners
+
+node "Phone" {
+  component "Mobile app" as app
+  database "Local cache\n(last rates, wallet,\npending orders)" as cache
+}
+cloud "Wireless link\n(Wi-Fi / LTE)\ncan be slow or drop" as air
+node "Server" {
+  component "Web service\n(REST API, HTTPS)" as api
+  database "Database\n(users, balances,\norders, rate copy)" as db
+}
+cloud "NBP API\napi.nbp.pl\n(external)" as nbp
+
+app -- cache
+app ..> air : requests
+air ..> api
+api -- db
+api --> nbp : GET table A\n(at most once per hour)
+
+note bottom of cache : owned by the phone,\nonly a copy
+note bottom of db : owner of balances and orders,\ndecides if an order succeeded
+note bottom of nbp : owner of exchange rates
+@enduml

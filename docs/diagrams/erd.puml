@@ -1,0 +1,48 @@
+@startuml erd
+skinparam monochrome true
+skinparam shadowing false
+hide circle
+skinparam linetype ortho
+title Database (ERD)
+
+entity "users" as users {
+  *id : INTEGER <<PK>>
+  --
+  *email : TEXT <<unique>>
+  *password_hash : TEXT
+  *created_at : TIMESTAMP
+}
+
+entity "balances" as balances {
+  *user_id : INTEGER <<PK, FK>>
+  *currency : CHAR(3) <<PK>>
+  --
+  *amount : DECIMAL(12,2)
+  note: amount >= 0
+}
+
+entity "orders" as orders {
+  *request_id : UUID <<PK>>
+  --
+  *user_id : INTEGER <<FK>>
+  *side : BUY / SELL
+  *currency : CHAR(3)
+  *amount : DECIMAL(12,2)
+  *seen_rate : DECIMAL(10,4)
+  rate_used : DECIMAL(10,4)
+  *status : CONFIRMED / REJECTED
+  reason : TEXT
+  *created_at : TIMESTAMP
+}
+
+entity "rates" as rates {
+  *currency : CHAR(3) <<PK>>
+  *effective_date : DATE <<PK>>
+  --
+  *mid : DECIMAL(10,4)
+  *fetched_at : TIMESTAMP
+}
+
+users ||--o{ balances
+users ||--o{ orders
+@enduml
