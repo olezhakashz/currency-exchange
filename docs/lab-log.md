@@ -31,5 +31,5 @@
 - Test data: simulated NBP table A in `backend/data/`, a demo user made by `seed.py`. Secrets only in `backend/.env` (ignored by Git), `.env.example` committed.
 - Demo output in `docs/lab05-demo-output.txt`; 28 automated tests pass.
 - Design changes since M1 are in `docs/design-changes.md`.
-- Tagged the reviewed version as `lab05`.
+- Demo ran on revision `2e9ef6c` (docs/lab05-demo-output.txt); tagged the reviewed version as `lab05`.
 - Next: NBP client that refreshes the rates table at most once per hour.

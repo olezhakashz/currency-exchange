@@ -4,7 +4,7 @@ HTTP 200
 {
     "status": "ok",
     "database": "ok",
-    "revision": "unknown"
+    "revision": "2e9ef6c"
 }
 
 === 1. READ: rates stored in the database ===
@@ -62,10 +62,10 @@ HTTP 200
 }
 
 === 4. WRITE: buy 100 EUR at the rate the user saw (4.265) ===
-$ POST /orders {"requestId":"0fe60d05-37ee-4582-91ce-339fd4ad4262","side":"BUY","currency":"EUR","amount":100.00,"seenRate":4.265}
+$ POST /orders {"requestId":"e84ce313-1af8-482f-b075-e1825a7773ba","side":"BUY","currency":"EUR","amount":100.00,"seenRate":4.265}
 HTTP 200
 {
-    "requestId": "0fe60d05-37ee-4582-91ce-339fd4ad4262",
+    "requestId": "e84ce313-1af8-482f-b075-e1825a7773ba",
     "status": "CONFIRMED",
     "side": "BUY",
     "currency": "EUR",
@@ -88,10 +88,10 @@ HTTP 200
     }
 }
 
-$ GET /orders/0fe60d05-37ee-4582-91ce-339fd4ad4262 
+$ GET /orders/e84ce313-1af8-482f-b075-e1825a7773ba 
 HTTP 200
 {
-    "requestId": "0fe60d05-37ee-4582-91ce-339fd4ad4262",
+    "requestId": "e84ce313-1af8-482f-b075-e1825a7773ba",
     "status": "CONFIRMED",
     "side": "BUY",
     "currency": "EUR",
@@ -102,12 +102,12 @@ HTTP 200
         "PLN": 573.5,
         "EUR": 100.0
     },
-    "createdAt": "2026-11-08T12:51:22+00:00"
+    "createdAt": "2026-11-08T13:25:56+00:00"
 }
 
 $ sqlite> SELECT request_id, side, currency, amount_minor, rate_used_e4, pln_minor, status FROM orders
 request_id | side | currency | amount_minor | rate_used_e4 | pln_minor | status
-0fe60d05-37ee-4582-91ce-339fd4ad4262 | BUY | EUR | 10000 | 42650 | 42650 | CONFIRMED
+e84ce313-1af8-482f-b075-e1825a7773ba | BUY | EUR | 10000 | 42650 | 42650 | CONFIRMED
 
 $ sqlite> SELECT u.email, b.currency, b.amount_minor FROM balances b JOIN users u ON u.id = b.user_id ORDER BY u.email, b.currency
 email | currency | amount_minor
@@ -115,10 +115,10 @@ demo@example.com | EUR | 10000
 demo@example.com | PLN | 57350
 
 === 6. Same requestId again (lost reply, phone retries): runs once ===
-$ POST /orders {"requestId":"0fe60d05-37ee-4582-91ce-339fd4ad4262","side":"BUY","currency":"EUR","amount":100.00,"seenRate":4.265}
+$ POST /orders {"requestId":"e84ce313-1af8-482f-b075-e1825a7773ba","side":"BUY","currency":"EUR","amount":100.00,"seenRate":4.265}
 HTTP 200
 {
-    "requestId": "0fe60d05-37ee-4582-91ce-339fd4ad4262",
+    "requestId": "e84ce313-1af8-482f-b075-e1825a7773ba",
     "status": "CONFIRMED",
     "side": "BUY",
     "currency": "EUR",
@@ -131,12 +131,12 @@ HTTP 200
     }
 }
 
-$ sqlite> SELECT COUNT(*) AS orders_with_this_id FROM orders WHERE request_id = '0fe60d05-37ee-4582-91ce-339fd4ad4262'
+$ sqlite> SELECT COUNT(*) AS orders_with_this_id FROM orders WHERE request_id = 'e84ce313-1af8-482f-b075-e1825a7773ba'
 orders_with_this_id
 1
 
 === 7. Bad input: 400/401 with an error code the app can switch on (nothing is stored) ===
-$ POST /orders {"requestId":"88b0f93e-f740-4d98-8a64-cb315f386857","side":"BUY","currency":"EUR","amount":-5,"seenRate":4.265}
+$ POST /orders {"requestId":"6884878f-39c6-4307-b481-e0eb0924523b","side":"BUY","currency":"EUR","amount":-5,"seenRate":4.265}
 HTTP 400
 {
     "error": {
@@ -151,7 +151,7 @@ HTTP 400
     }
 }
 
-$ POST /orders {"requestId":"424e12bd-aec4-4c35-bff1-6a22c430a111","side":"BUY","currency":"XYZ","amount":10,"seenRate":1.0}
+$ POST /orders {"requestId":"227cd2c1-7319-4d0b-9e54-b493608714c1","side":"BUY","currency":"XYZ","amount":10,"seenRate":1.0}
 HTTP 400
 {
     "error": {
@@ -207,19 +207,19 @@ HTTP 401
 }
 
 === 8. Valid input but the order is refused: 409, saved as REJECTED ===
-$ POST /orders {"requestId":"f205502e-5c0d-46d9-8984-6091cdf6e1a0","side":"BUY","currency":"EUR","amount":10,"seenRate":4.0000}
+$ POST /orders {"requestId":"81a91a92-5e53-4b80-94da-99340a4c3082","side":"BUY","currency":"EUR","amount":10,"seenRate":4.0000}
 HTTP 409
 {
-    "requestId": "f205502e-5c0d-46d9-8984-6091cdf6e1a0",
+    "requestId": "81a91a92-5e53-4b80-94da-99340a4c3082",
     "status": "REJECTED",
     "reason": "RATE_CHANGED",
     "currentRate": 4.265
 }
 
-$ POST /orders {"requestId":"5bdd7c40-8700-4f63-a860-b48c2c32777f","side":"BUY","currency":"EUR","amount":900,"seenRate":4.265}
+$ POST /orders {"requestId":"9f37ca61-4f7f-4c7f-af10-4ec0e8061f9a","side":"BUY","currency":"EUR","amount":900,"seenRate":4.265}
 HTTP 409
 {
-    "requestId": "5bdd7c40-8700-4f63-a860-b48c2c32777f",
+    "requestId": "9f37ca61-4f7f-4c7f-af10-4ec0e8061f9a",
     "status": "REJECTED",
     "reason": "INSUFFICIENT_FUNDS",
     "needed": {
@@ -231,10 +231,10 @@ HTTP 409
 }
 
 === 9. Status of an order the server never received ===
-$ GET /orders/22a1a074-880b-45e8-8a23-53e5eb5542ec 
+$ GET /orders/a3c82502-b4be-452e-ba54-a2a61e56c092 
 HTTP 404
 {
-    "requestId": "22a1a074-880b-45e8-8a23-53e5eb5542ec",
+    "requestId": "a3c82502-b4be-452e-ba54-a2a61e56c092",
     "status": "NOT_FOUND"
 }
 
