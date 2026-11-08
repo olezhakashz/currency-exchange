@@ -22,3 +22,14 @@
 - Added the ERD and an architecture diagram in PlantUML, and an API outline (docs/api.md).
 - Tagged the version shown for review as `part1`.
 - Next: start coding the web service (rates endpoint and NBP client).
+
+## Lab 05
+- Built the web service (FastAPI) and the database (SQLite) in `backend/`.
+- Schema in `backend/app/schema.sql`: users, balances, orders, rates, with CHECK constraints so a balance can't go below zero.
+- Read path: `GET /rates`, `GET /wallet`, `GET /orders/{requestId}`. Write path: `POST /orders` (buy/sell), balances and order saved in one transaction, at most once per `requestId`.
+- Input is checked at the service boundary; every error has a `code` the app can use (docs/api.md).
+- Test data: simulated NBP table A in `backend/data/`, a demo user made by `seed.py`. Secrets only in `backend/.env` (ignored by Git), `.env.example` committed.
+- Demo output in `docs/lab05-demo-output.txt`; 28 automated tests pass.
+- Design changes since M1 are in `docs/design-changes.md`.
+- Tagged the reviewed version as `lab05`.
+- Next: NBP client that refreshes the rates table at most once per hour.

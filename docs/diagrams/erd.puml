@@ -3,44 +3,46 @@ skinparam monochrome true
 skinparam shadowing false
 hide circle
 skinparam linetype ortho
-title Database (ERD)
+title Database (ERD), as built in Lab 05 (SQLite)
 
 entity "users" as users {
   *id : INTEGER <<PK>>
   --
   *email : TEXT <<unique>>
   *password_hash : TEXT
-  *created_at : TIMESTAMP
+  *created_at : TEXT (ISO time)
 }
 
 entity "balances" as balances {
   *user_id : INTEGER <<PK, FK>>
-  *currency : CHAR(3) <<PK>>
+  *currency : TEXT(3) <<PK>>
   --
-  *amount : DECIMAL(12,2)
-  note: amount >= 0
+  *amount_minor : INTEGER
+  note: 1/100 units, CHECK >= 0
 }
 
 entity "orders" as orders {
-  *request_id : UUID <<PK>>
+  *request_id : TEXT (UUID) <<PK>>
   --
   *user_id : INTEGER <<FK>>
   *side : BUY / SELL
-  *currency : CHAR(3)
-  *amount : DECIMAL(12,2)
-  *seen_rate : DECIMAL(10,4)
-  rate_used : DECIMAL(10,4)
+  *currency : TEXT(3)
+  *amount_minor : INTEGER
+  *seen_rate_e4 : INTEGER
+  rate_used_e4 : INTEGER
+  pln_minor : INTEGER
   *status : CONFIRMED / REJECTED
   reason : TEXT
-  *created_at : TIMESTAMP
+  *response_json : TEXT
+  *created_at : TEXT (ISO time)
 }
 
 entity "rates" as rates {
-  *currency : CHAR(3) <<PK>>
-  *effective_date : DATE <<PK>>
+  *currency : TEXT(3) <<PK>>
+  *effective_date : TEXT (date) <<PK>>
   --
-  *mid : DECIMAL(10,4)
-  *fetched_at : TIMESTAMP
+  *mid_e4 : INTEGER
+  *fetched_at : TEXT (ISO time)
 }
 
 users ||--o{ balances

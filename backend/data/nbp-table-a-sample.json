@@ -1,0 +1,18 @@
+[
+  {
+    "table": "A",
+    "no": "216/A/NBP/2026",
+    "effectiveDate": "2026-11-06",
+    "_note": "SIMULATED test data in the shape of GET https://api.nbp.pl/api/exchangerates/tables/A/?format=json. Values are made up for the lab, not real NBP rates.",
+    "rates": [
+      { "currency": "dolar amerykański", "code": "USD", "mid": 3.9120 },
+      { "currency": "euro", "code": "EUR", "mid": 4.2650 },
+      { "currency": "frank szwajcarski", "code": "CHF", "mid": 4.5310 },
+      { "currency": "funt szterling", "code": "GBP", "mid": 5.0840 },
+      { "currency": "korona czeska", "code": "CZK", "mid": 0.1702 },
+      { "currency": "jen (Japonia)", "code": "JPY", "mid": 0.0259 },
+      { "currency": "hrywna (Ukraina)", "code": "UAH", "mid": 0.0941 },
+      { "currency": "korona norweska", "code": "NOK", "mid": 0.3528 }
+    ]
+  }
+]

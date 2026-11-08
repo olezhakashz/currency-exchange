@@ -1,0 +1,256 @@
+=== 0. Health check (service can reach the database) ===
+$ GET /health 
+HTTP 200
+{
+    "status": "ok",
+    "database": "ok",
+    "revision": "unknown"
+}
+
+=== 1. READ: rates stored in the database ===
+$ GET /rates 
+HTTP 200
+{
+    "effectiveDate": "2026-11-06",
+    "stale": false,
+    "rates": [
+        {
+            "code": "CHF",
+            "mid": 4.531
+        },
+        {
+            "code": "CZK",
+            "mid": 0.1702
+        },
+        {
+            "code": "EUR",
+            "mid": 4.265
+        },
+        {
+            "code": "GBP",
+            "mid": 5.084
+        },
+        {
+            "code": "JPY",
+            "mid": 0.0259
+        },
+        {
+            "code": "NOK",
+            "mid": 0.3528
+        },
+        {
+            "code": "UAH",
+            "mid": 0.0941
+        },
+        {
+            "code": "USD",
+            "mid": 3.912
+        }
+    ]
+}
+
+=== 2. Log in as the seeded demo user ===
+token received (56 characters, not printed)
+
+=== 3. READ: wallet before the order ===
+$ GET /wallet 
+HTTP 200
+{
+    "balances": {
+        "PLN": 1000.0
+    }
+}
+
+=== 4. WRITE: buy 100 EUR at the rate the user saw (4.265) ===
+$ POST /orders {"requestId":"0fe60d05-37ee-4582-91ce-339fd4ad4262","side":"BUY","currency":"EUR","amount":100.00,"seenRate":4.265}
+HTTP 200
+{
+    "requestId": "0fe60d05-37ee-4582-91ce-339fd4ad4262",
+    "status": "CONFIRMED",
+    "side": "BUY",
+    "currency": "EUR",
+    "amount": 100.0,
+    "rateUsed": 4.265,
+    "plnAmount": 426.5,
+    "balances": {
+        "PLN": 573.5,
+        "EUR": 100.0
+    }
+}
+
+=== 5. READ: the committed change is stored ===
+$ GET /wallet 
+HTTP 200
+{
+    "balances": {
+        "PLN": 573.5,
+        "EUR": 100.0
+    }
+}
+
+$ GET /orders/0fe60d05-37ee-4582-91ce-339fd4ad4262 
+HTTP 200
+{
+    "requestId": "0fe60d05-37ee-4582-91ce-339fd4ad4262",
+    "status": "CONFIRMED",
+    "side": "BUY",
+    "currency": "EUR",
+    "amount": 100.0,
+    "rateUsed": 4.265,
+    "plnAmount": 426.5,
+    "balances": {
+        "PLN": 573.5,
+        "EUR": 100.0
+    },
+    "createdAt": "2026-11-08T12:51:22+00:00"
+}
+
+$ sqlite> SELECT request_id, side, currency, amount_minor, rate_used_e4, pln_minor, status FROM orders
+request_id | side | currency | amount_minor | rate_used_e4 | pln_minor | status
+0fe60d05-37ee-4582-91ce-339fd4ad4262 | BUY | EUR | 10000 | 42650 | 42650 | CONFIRMED
+
+$ sqlite> SELECT u.email, b.currency, b.amount_minor FROM balances b JOIN users u ON u.id = b.user_id ORDER BY u.email, b.currency
+email | currency | amount_minor
+demo@example.com | EUR | 10000
+demo@example.com | PLN | 57350
+
+=== 6. Same requestId again (lost reply, phone retries): runs once ===
+$ POST /orders {"requestId":"0fe60d05-37ee-4582-91ce-339fd4ad4262","side":"BUY","currency":"EUR","amount":100.00,"seenRate":4.265}
+HTTP 200
+{
+    "requestId": "0fe60d05-37ee-4582-91ce-339fd4ad4262",
+    "status": "CONFIRMED",
+    "side": "BUY",
+    "currency": "EUR",
+    "amount": 100.0,
+    "rateUsed": 4.265,
+    "plnAmount": 426.5,
+    "balances": {
+        "PLN": 573.5,
+        "EUR": 100.0
+    }
+}
+
+$ sqlite> SELECT COUNT(*) AS orders_with_this_id FROM orders WHERE request_id = '0fe60d05-37ee-4582-91ce-339fd4ad4262'
+orders_with_this_id
+1
+
+=== 7. Bad input: 400/401 with an error code the app can switch on (nothing is stored) ===
+$ POST /orders {"requestId":"88b0f93e-f740-4d98-8a64-cb315f386857","side":"BUY","currency":"EUR","amount":-5,"seenRate":4.265}
+HTTP 400
+{
+    "error": {
+        "code": "INVALID_AMOUNT",
+        "message": "Amount must be greater than 0.",
+        "details": [
+            {
+                "field": "amount",
+                "problem": "must be > 0"
+            }
+        ]
+    }
+}
+
+$ POST /orders {"requestId":"424e12bd-aec4-4c35-bff1-6a22c430a111","side":"BUY","currency":"XYZ","amount":10,"seenRate":1.0}
+HTTP 400
+{
+    "error": {
+        "code": "UNKNOWN_CURRENCY",
+        "message": "No NBP rate for currency XYZ.",
+        "details": [
+            {
+                "field": "currency",
+                "problem": "not in NBP table A"
+            }
+        ]
+    }
+}
+
+$ POST /orders {"side":"HOLD","amount":"lots"}
+HTTP 400
+{
+    "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Some fields are missing or have the wrong type.",
+        "details": [
+            {
+                "field": "requestId",
+                "problem": "Field required"
+            },
+            {
+                "field": "side",
+                "problem": "Input should be 'BUY' or 'SELL'"
+            },
+            {
+                "field": "currency",
+                "problem": "Field required"
+            },
+            {
+                "field": "amount",
+                "problem": "Input should be a valid decimal"
+            },
+            {
+                "field": "seenRate",
+                "problem": "Field required"
+            }
+        ]
+    }
+}
+
+$ GET /wallet 
+HTTP 401
+{
+    "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Token is not valid."
+    }
+}
+
+=== 8. Valid input but the order is refused: 409, saved as REJECTED ===
+$ POST /orders {"requestId":"f205502e-5c0d-46d9-8984-6091cdf6e1a0","side":"BUY","currency":"EUR","amount":10,"seenRate":4.0000}
+HTTP 409
+{
+    "requestId": "f205502e-5c0d-46d9-8984-6091cdf6e1a0",
+    "status": "REJECTED",
+    "reason": "RATE_CHANGED",
+    "currentRate": 4.265
+}
+
+$ POST /orders {"requestId":"5bdd7c40-8700-4f63-a860-b48c2c32777f","side":"BUY","currency":"EUR","amount":900,"seenRate":4.265}
+HTTP 409
+{
+    "requestId": "5bdd7c40-8700-4f63-a860-b48c2c32777f",
+    "status": "REJECTED",
+    "reason": "INSUFFICIENT_FUNDS",
+    "needed": {
+        "PLN": 3838.5
+    },
+    "available": {
+        "PLN": 573.5
+    }
+}
+
+=== 9. Status of an order the server never received ===
+$ GET /orders/22a1a074-880b-45e8-8a23-53e5eb5542ec 
+HTTP 404
+{
+    "requestId": "22a1a074-880b-45e8-8a23-53e5eb5542ec",
+    "status": "NOT_FOUND"
+}
+
+=== 10. Final database state ===
+$ sqlite> SELECT status, reason, COUNT(*) AS n FROM orders GROUP BY status, reason
+status | reason | n
+CONFIRMED | None | 1
+REJECTED | INSUFFICIENT_FUNDS | 1
+REJECTED | RATE_CHANGED | 1
+
+$ GET /wallet 
+HTTP 200
+{
+    "balances": {
+        "PLN": 573.5,
+        "EUR": 100.0
+    }
+}
+
