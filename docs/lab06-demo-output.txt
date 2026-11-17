@@ -1,55 +1,75 @@
-Lab 06 demo: the Flutter app (web build, Pixel 7 screen size, headless Chromium) against the Lab 05 service
-Run on 2026-11-17 16:42 UTC. Screenshots for each step: docs/screenshots/.
+PS C:\Users\olehs\Desktop\currency-exchange> flutter doctor --android-licenses
+>> flutter doctor
+WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Android CLI will be used instead.
+The 'android' binary can also be found in the cmdline-tools directory, and 'android sdk' is the replacement for 'sdkmanager'.
+To learn more about the Android CLI and how to use it, see the documentation (https://d.android.com/tools/agents/android-cli)
 
-=== Service health ===
-{"status":"ok","database":"ok","revision":"unknown"}
+Warning: The --licenses option is no longer needed.
+The Flutter CLI developer tool uses Google Analytics to report usage and diagnostic
+data along with package dependencies, and crash reporting to send basic crash
+reports. This data is used to help improve the Dart platform, Flutter framework,
+and related tools.
 
-=== Service log during the run (one line per request; X-Client names the app) ===
+Telemetry is not sent on the very first run. To disable reporting of telemetry,
+run this terminal command:
+
+    flutter --disable-analytics
+
+If you opt out of telemetry, an opt-out event will be sent, and then no further
+information will be sent. This data is collected in accordance with the Google
+Privacy Policy (https://policies.google.com/privacy).
+
+Doctor summary (to see all details, run flutter doctor -v):
+[√] Flutter (Channel stable, 3.50.0, on Microsoft Windows [Version 10.0.26200.9974], locale ru-RU)
+[√] Windows Version (Windows 11 or higher, 25H2, 2009)
+[√] Android toolchain - develop for Android devices (Android SDK version 36.1.0)
+[√] Chrome - develop for the web
+[!] Visual Studio - develop Windows apps (Visual Studio Build Tools 2026 18.10.3)
+    X The current Visual Studio installation is incomplete.
+      Please use Visual Studio Installer to complete the installation or reinstall Visual Studio.
+[√] Connected device (4 available)
+[√] Network resources
+                                             cd mobile
+>> flutter pub getues in 1 category.
+>> flutter tesths\Desktop\currency-exchange> 
+Resolving dependencies...
+Downloading packages...
++ listen 1.0.1
+  material_color_utilities 0.13.0 (0.13.1 available)
+> test_api 0.7.14 (was 0.7.12) (0.7.15 available)
+Changed 2 dependencies!
+2 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.    cd C:\Users\olehs\Desktop\currency-exchange\backendd!                                                 
+>> .venv\Scripts\Activate.ps1                                                
+>> python seed.py --reset
+>> uvicorn app.main:create_app --factory --port 8000
+Deleted C:\Users\olehs\Desktop\currency-exchange\backend\data\exchange.db
+Loaded 8 rates for 2026-11-06 from nbp-table-a-sample.json (simulated data)
+Created demo user demo@example.com (id 1) with 1000.00 PLN
+Database ready: C:\Users\olehs\Desktop\currency-exchange\backend\data\exchange.db
+INFO:     Started server process [16392]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-=== CLIENT STEP: 1 login ===
-INFO:     request POST /auth/login from currency-exchange-mobile/0.6.0 (web) -> 200
-INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
-=== CLIENT STEP: 2 open wallet before order ===
-INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (web) -> 200
-INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
-=== CLIENT STEP: 3 buy 100 EUR ===
-INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 200
-=== CLIENT STEP: 4 wallet after order ===
-INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (web) -> 200
-INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
-=== CLIENT STEP: 5 validation: amount 0.001 (server says INVALID_AMOUNT) ===
-INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 400
-=== CLIENT STEP: 6 network off: buy 50 EUR ===
-=== CLIENT STEP: 7 network back: check order status ===
-INFO:     request GET /orders/e8a941cd-31bb-4c90-9070-57e9077ad967 from currency-exchange-mobile/0.6.0 (web) -> 404
-=== CLIENT STEP: 8 send the same order again (same requestId) ===
-INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 200
-=== CLIENT STEP: 9 NBP publishes a new EUR rate; user still sees the old one ===
-EUR latest rate set to 4.2710
-INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 409
-=== CLIENT STEP: 10 network off: refresh rates ===
-=== CLIENT STEP: 11 network back: refresh rates ===
-INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
-=== CLIENT STEP: 12 buy 900 EUR (more than the PLN balance) ===
-INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 409
-=== CLIENT STEP: 13 final wallet ===
-INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (web) -> 200
-INFO:     request GET /health from curl/8.5.0 -> 200
-
-=== Database state after the run (python db_state.py) ===
-$ sqlite> SELECT request_id, side, currency, amount_minor, seen_rate_e4, rate_used_e4, pln_minor, status, reason, created_at FROM orders ORDER BY created_at
-request_id | side | currency | amount_minor | seen_rate_e4 | rate_used_e4 | pln_minor | status | reason | created_at
-4cbc74c3-644a-41dc-81e4-fefa7ca4e203 | BUY | EUR | 10000 | 42650 | 42650 | 42650 | CONFIRMED | None | 2026-11-17T16:41:01+00:00
-e8a941cd-31bb-4c90-9070-57e9077ad967 | BUY | EUR | 5000 | 42650 | 42650 | 21325 | CONFIRMED | None | 2026-11-17T16:41:20+00:00
-6460c7f3-c5f0-4764-a936-14acfdda5653 | BUY | EUR | 1000 | 42650 | None | None | REJECTED | RATE_CHANGED | 2026-11-17T16:41:25+00:00
-f06a21ea-8167-4eab-b682-0d12d54fb02b | BUY | EUR | 90000 | 42710 | None | None | REJECTED | INSUFFICIENT_FUNDS | 2026-11-17T16:41:37+00:00
-
-$ sqlite> SELECT u.email, b.currency, b.amount_minor FROM balances b JOIN users u ON u.id = b.user_id ORDER BY u.email, b.currency
-email | currency | amount_minor
-demo@example.com | EUR | 15000
-demo@example.com | PLN | 36025
-
-$ sqlite> SELECT currency, effective_date, mid_e4 FROM rates WHERE currency = 'EUR' ORDER BY effective_date
-currency | effective_date | mid_e4
-EUR | 2026-11-06 | 42710
-
+INFO:     request POST /auth/login from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64574 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64574 - "GET /rates HTTP/1.1" 200 OK
+INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64582 - "GET /wallet HTTP/1.1" 200 OK
+INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64582 - "GET /wallet HTTP/1.1" 200 OK
+INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64582 - "GET /wallet HTTP/1.1" 200 OK
+INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64582 - "GET /wallet HTTP/1.1" 200 OK
+INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64582 - "GET /rates HTTP/1.1" 200 OK
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:64602 - "POST /orders HTTP/1.1" 200 OK
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (android) -> 400
+INFO:     127.0.0.1:53595 - "POST /orders HTTP/1.1" 400 Bad Request
+INFO:     request GET /orders/8c4b329b-2eec-4900-ba17-f2cc37b58063 from currency-exchange-mobile/0.6.0 (android) -> 404
+INFO:     127.0.0.1:52446 - "GET /orders/8c4b329b-2eec-4900-ba17-f2cc37b58063 HTTP/1.1" 404 Not Found
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (android) -> 200
+INFO:     127.0.0.1:52461 - "POST /orders HTTP/1.1" 200 OK
