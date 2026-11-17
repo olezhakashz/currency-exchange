@@ -1,0 +1,20 @@
+name: currency_exchange
+description: "Lab 06 mobile client for the currency exchange web service."
+publish_to: 'none'
+version: 0.6.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
