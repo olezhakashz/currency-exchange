@@ -7,6 +7,8 @@ header `Authorization: Bearer <token>`.
 
 Status after Lab 05: all endpoints below are implemented in `backend/`,
 except the NBP call, which is replaced by simulated seed data for now.
+Lab 06: the Flutter app in `mobile/` uses every endpoint below except
+`/auth/register`.
 
 | Method | Path | Token | Read / action | What it does |
 | --- | --- | --- | --- | --- |
@@ -68,6 +70,17 @@ confirmed order, so asking again gives the same answer:
 If the same `requestId` comes again with the same order, the server doesn't
 run it a second time. It sends back the answer it saved the first time,
 with the same status code and the header `Idempotent-Replayed: true`.
+
+## Headers the app sends (Lab 06)
+
+| Header | Value | Why |
+| --- | --- | --- |
+| `Authorization` | `Bearer <token>` | Endpoints marked "token" |
+| `Content-Type` | `application/json` | Requests with a body |
+| `X-Client` | `currency-exchange-mobile/0.6.0 (android)` (or `ios`, `web`) | The service logs it, so the log shows the request came from the app |
+
+The browser (web) build of the app also needs CORS. It is off unless
+`CORS_ORIGINS` is set in `backend/.env`; the Android app does not use it.
 
 ## Error format
 

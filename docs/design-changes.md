@@ -20,6 +20,9 @@ code written in Lab 05 differs from that design, and why.
 | 13 | Stale flag | "older than the latest NBP publication day" | Computed: newest expected table is today after 12:30 Warsaw time on weekdays, otherwise the previous weekday. Holidays are ignored. | Needed a concrete rule to code. Holidays can make it say "stale" when it isn't; fine for now. |
 | 14 | Concurrency | "one database transaction" | `BEGIN IMMEDIATE` (write lock before reading the balance) and `UPDATE ... WHERE amount_minor >= ?` | Two orders at the same time cannot both spend the same money (S11). Tested with 4 parallel orders. |
 | 15 | Order limits | Not specified | Amount > 0, at most 2 decimals, at most 1 000 000; `seenRate` at most 4 decimals; PLN cannot be ordered | Concrete boundary rules for validation. |
+| 16 | CORS (Lab 06) | Not specified | Optional, set with `CORS_ORIGINS` in `.env`; off by default. Allows `GET`/`POST`, the headers the app sends, and exposes `Idempotent-Replayed`. | Needed only for the Flutter web build (the evidence run). The Android app is not a browser and does not need it. |
+| 17 | Request log (Lab 06) | Not specified | One log line per request: method, path, `X-Client` header, status | Shows in the demo that the app's request (not curl) reached the service. |
+| 18 | Offline check on the phone (Lab 06) | `ConnectivityMonitor` blocks the button before sending (S1) | Not yet. The app sends and reacts to the missing answer: "No connection: result not known yet", then asks `GET /orders/{id}` | One code path covers offline, wrong address and server down. The monitor and the local cache come in a later lab. |
 
 The ERD source `docs/diagrams/erd.puml` is updated to match the real
 schema (`backend/app/schema.sql`). `docs/api.md` is updated with the error

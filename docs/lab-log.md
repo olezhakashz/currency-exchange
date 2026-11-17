@@ -31,5 +31,14 @@
 - Test data: simulated NBP table A in `backend/data/`, a demo user made by `seed.py`. Secrets only in `backend/.env` (ignored by Git), `.env.example` committed.
 - Demo output in `docs/lab05-demo-output.txt`; 28 automated tests pass.
 - Design changes since M1 are in `docs/design-changes.md`.
-- Demo ran on revision `2e9ef6c` (docs/lab05-demo-output.txt); tagged the reviewed version as `lab05`.
+- Tagged the reviewed version as `lab05`.
 - Next: NBP client that refreshes the rates table at most once per hour.
+
+## Lab 06
+- Built the mobile client in Flutter (`mobile/`): log in, rates (read), wallet (read) and buy/sell (data-changing action) over HTTP, talking to the Lab 05 service.
+- Every call has a loading, success and error state. A tap only asks for the order; "Confirmed" appears only after the service answers CONFIRMED.
+- Errors are told apart: 400 from the service = "Please check the input" (orange, field error under the amount), no answer = "No connection to the service" (red, wifi icon). An order without an answer is "result not known yet", never "failed", and the app asks `GET /orders/{requestId}`; a retry reuses the same `requestId`.
+- Small service changes: optional CORS for the web build, one log line per request with the `X-Client` header (docs/design-changes.md rows 16 to 18).
+- Evidence: the app ran against the service and database; log and SQL rows in `docs/lab06-demo-output.txt`, screenshots in `docs/screenshots/`, step-by-step in `docs/mobile-states.md`. 13 Flutter tests and 31 backend tests pass.
+- Tagged the reviewed version as `lab06`.
+- Next: local cache of rates and wallet for offline use, and a connectivity check that disables actions offline.

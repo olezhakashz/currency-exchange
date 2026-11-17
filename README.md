@@ -2,7 +2,7 @@
 
 ## Author
 
-- Oleh (working alone)
+* Oleh (working alone)
 
 ## Topic
 
@@ -18,22 +18,22 @@ The phone works over a wireless network that can be slow or drop.
 
 ## Components
 
-| Component             | Role                                                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------------------ |
-| Mobile app            | Shows rates, converts amounts, sends buy/sell orders, keeps a local cache of the last rates.           |
-| Web service (backend) | Exposes a REST API to the app, fetches rates from NBP, validates and executes orders, stores wallets.  |
-| Database              | Stores users, wallet balances, transactions, and a copy of the latest rates with their date.           |
-| External data source  | NBP API, `https://api.nbp.pl/api/exchangerates/` (table A, mid rates, published once per working day). |
+|Component|Role|
+|-|-|
+|Mobile app|Shows rates, converts amounts, sends buy/sell orders, keeps a local cache of the last rates.|
+|Web service (backend)|Exposes a REST API to the app, fetches rates from NBP, validates and executes orders, stores wallets.|
+|Database|Stores users, wallet balances, transactions, and a copy of the latest rates with their date.|
+|External data source|NBP API, `https://api.nbp.pl/api/exchangerates/` (table A, mid rates, published once per working day).|
 
 ## Technology choices
 
-| Part                 | Choice                                     | Why                                        |
-| -------------------- | ------------------------------------------ | ------------------------------------------ |
-| Mobile app           | Flutter (Dart) _or_ Android with Kotlin    | One codebase, easy HTTP and local storage. |
-| Web service          | Python + FastAPI                           | Short code, automatic API docs.            |
-| Database             | SQLite (dev), PostgreSQL (later, optional) | No setup to start.                         |
-| Local cache on phone | SQLite / shared preferences                | Show last rates when offline.              |
-| Version control      | Git + GitHub                               | Required.                                  |
+|Part|Choice|Why|
+|-|-|-|
+|Mobile app|Flutter (Dart) *or* Android with Kotlin|One codebase, easy HTTP and local storage.|
+|Web service|Python + FastAPI|Short code, automatic API docs.|
+|Database|SQLite (dev), PostgreSQL (later, optional)|No setup to start.|
+|Local cache on phone|SQLite / shared preferences|Show last rates when offline.|
+|Version control|Git + GitHub|Required.|
 
 (Change these if you already know something else; just keep the reason.)
 
@@ -49,6 +49,38 @@ backend/                 web service
 mobile/                  mobile app
 ```
 
+## How to run the backend
+
+Short version (details and Windows commands in [backend/README.md](backend/README.md)):
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env        # then set SECRET_KEY and DEMO_PASSWORD
+python seed.py --reset
+uvicorn app.main:create_app --factory --port 8000
+```
+
+Secrets live only in `backend/.env`, which Git ignores. API endpoints are
+described in [docs/api.md](docs/api.md).
+
+## How to run the mobile app
+
+Flutter app in `mobile/` (details in [mobile/README.md](mobile/README.md)).
+Start the backend first, then:
+
+```bash
+cd mobile
+flutter pub get
+flutter test                                   # 13 tests
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000   # Android emulator
+```
+
+Log in as `demo@example.com` with the `DEMO_PASSWORD` from `backend/.env`.
+What each screen shows while loading, on success and on errors:
+[docs/mobile-states.md](docs/mobile-states.md).
+
 ## README outline (sections to fill in over the semester)
 
 1. Author
@@ -61,3 +93,4 @@ mobile/                  mobile app
 8. Handling connectivity problems (cache, retries, idempotent orders)
 9. Tests
 10. Known limitations
+

@@ -1,0 +1,55 @@
+Lab 06 demo: the Flutter app (web build, Pixel 7 screen size, headless Chromium) against the Lab 05 service
+Run on 2026-11-17 16:42 UTC. Screenshots for each step: docs/screenshots/.
+
+=== Service health ===
+{"status":"ok","database":"ok","revision":"unknown"}
+
+=== Service log during the run (one line per request; X-Client names the app) ===
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+=== CLIENT STEP: 1 login ===
+INFO:     request POST /auth/login from currency-exchange-mobile/0.6.0 (web) -> 200
+INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
+=== CLIENT STEP: 2 open wallet before order ===
+INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (web) -> 200
+INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
+=== CLIENT STEP: 3 buy 100 EUR ===
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 200
+=== CLIENT STEP: 4 wallet after order ===
+INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (web) -> 200
+INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
+=== CLIENT STEP: 5 validation: amount 0.001 (server says INVALID_AMOUNT) ===
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 400
+=== CLIENT STEP: 6 network off: buy 50 EUR ===
+=== CLIENT STEP: 7 network back: check order status ===
+INFO:     request GET /orders/e8a941cd-31bb-4c90-9070-57e9077ad967 from currency-exchange-mobile/0.6.0 (web) -> 404
+=== CLIENT STEP: 8 send the same order again (same requestId) ===
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 200
+=== CLIENT STEP: 9 NBP publishes a new EUR rate; user still sees the old one ===
+EUR latest rate set to 4.2710
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 409
+=== CLIENT STEP: 10 network off: refresh rates ===
+=== CLIENT STEP: 11 network back: refresh rates ===
+INFO:     request GET /rates from currency-exchange-mobile/0.6.0 (web) -> 200
+=== CLIENT STEP: 12 buy 900 EUR (more than the PLN balance) ===
+INFO:     request POST /orders from currency-exchange-mobile/0.6.0 (web) -> 409
+=== CLIENT STEP: 13 final wallet ===
+INFO:     request GET /wallet from currency-exchange-mobile/0.6.0 (web) -> 200
+INFO:     request GET /health from curl/8.5.0 -> 200
+
+=== Database state after the run (python db_state.py) ===
+$ sqlite> SELECT request_id, side, currency, amount_minor, seen_rate_e4, rate_used_e4, pln_minor, status, reason, created_at FROM orders ORDER BY created_at
+request_id | side | currency | amount_minor | seen_rate_e4 | rate_used_e4 | pln_minor | status | reason | created_at
+4cbc74c3-644a-41dc-81e4-fefa7ca4e203 | BUY | EUR | 10000 | 42650 | 42650 | 42650 | CONFIRMED | None | 2026-11-17T16:41:01+00:00
+e8a941cd-31bb-4c90-9070-57e9077ad967 | BUY | EUR | 5000 | 42650 | 42650 | 21325 | CONFIRMED | None | 2026-11-17T16:41:20+00:00
+6460c7f3-c5f0-4764-a936-14acfdda5653 | BUY | EUR | 1000 | 42650 | None | None | REJECTED | RATE_CHANGED | 2026-11-17T16:41:25+00:00
+f06a21ea-8167-4eab-b682-0d12d54fb02b | BUY | EUR | 90000 | 42710 | None | None | REJECTED | INSUFFICIENT_FUNDS | 2026-11-17T16:41:37+00:00
+
+$ sqlite> SELECT u.email, b.currency, b.amount_minor FROM balances b JOIN users u ON u.id = b.user_id ORDER BY u.email, b.currency
+email | currency | amount_minor
+demo@example.com | EUR | 15000
+demo@example.com | PLN | 36025
+
+$ sqlite> SELECT currency, effective_date, mid_e4 FROM rates WHERE currency = 'EUR' ORDER BY effective_date
+currency | effective_date | mid_e4
+EUR | 2026-11-06 | 42710
+
