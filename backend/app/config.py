@@ -28,6 +28,9 @@ class Settings:
     secret_key: str
     token_ttl_seconds: int
     start_balance_pln: str
+    # Browser origins allowed to call the API (only needed for the Flutter web
+    # build; the Android/iOS app does not use CORS). Empty = CORS off.
+    cors_origins: tuple[str, ...] = ()
 
 
 class ConfigError(RuntimeError):
@@ -54,4 +57,5 @@ def get_settings() -> Settings:
         secret_key=secret,
         token_ttl_seconds=int(os.environ.get("TOKEN_TTL_SECONDS", "86400")),
         start_balance_pln=os.environ.get("START_BALANCE_PLN", "1000.00"),
+        cors_origins=tuple(o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()),
     )

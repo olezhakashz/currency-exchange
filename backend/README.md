@@ -37,6 +37,10 @@ uvicorn app.main:create_app --factory --port 8000
 Check it runs: open http://127.0.0.1:8000/health (shows the Git revision)
 and http://127.0.0.1:8000/docs (interactive API docs).
 
+For the Flutter **web** build only, set `CORS_ORIGINS` in `.env` to the
+address the web app is served from (for example `http://127.0.0.1:8080`).
+The Android app does not need it.
+
 If `SECRET_KEY` is missing or still the example value, the service refuses
 to start and says what to do.
 
@@ -46,7 +50,8 @@ With the service running, in a second terminal (also in `backend/`):
 
 ```bash
 bash demo.sh | tee ../docs/lab05-demo-output.txt   # end-to-end demo with curl
-python -m pytest -v                                 # 28 automated tests
+python -m pytest -v                                 # 31 automated tests
+python db_state.py                                  # orders and balances stored now
 ```
 
 The tests use their own temporary database, so they don't touch
@@ -66,6 +71,7 @@ The tests use their own temporary database, so they don't touch
 | `seed.py` | Creates the database and test data |
 | `data/nbp-table-a-sample.json` | Simulated rates in the NBP table A JSON shape |
 | `demo.sh` | End-to-end demo script |
+| `db_state.py` | Prints the stored orders and balances (Lab 06 evidence) |
 | `tests/test_api.py` | Automated tests |
 | `.env.example` | Which settings exist (the real `.env` is ignored by Git) |
 

@@ -3,13 +3,15 @@
 Run:  uvicorn app.main:create_app --factory --port 8000      (from the backend/ folder)
 Docs: http://127.0.0.1:8000/docs
 """
+import logging
 import os
 import subprocess
 from decimal import Decimal
 from typing import Iterator, Literal
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header
+from fastapi import Depends, FastAPI, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -58,6 +60,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     revision = git_revision()
     app = FastAPI(title="Currency Exchange API", version="0.5.0")
     install_handlers(app)
+
+    if settings.cors_origins:
+        app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins),
+                           allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type", "X-Client"],
+                           expose_headers=["Idempotent-Replayed"])
+
+    log = logging.getLogger("uvicorn.error")
+
+    @app.middleware("http")
+    async def log_client(request: Request, call_next):
+        # One line per request, naming the client, so a demo can show that the
+        # phone's request (not curl) reached the service.
+        response = await call_next(request)
+        if request.method != "OPTIONS":
+            log.info("request %s %s from %s -> %s", request.method, request.url.path,
+                     request.headers.get("x-client", request.headers.get("user-agent", "?")), response.status_code)
+        return response
 
     def get_conn() -> Iterator:
         conn = db.connect(settings.database_path)
