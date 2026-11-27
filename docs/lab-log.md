@@ -42,3 +42,15 @@
 - Evidence: the app ran against the service and database; log and SQL rows in `docs/lab06-demo-output.txt`, screenshots in `docs/screenshots/`, step-by-step in `docs/mobile-states.md`. 13 Flutter tests and 31 backend tests pass.
 - Tagged the reviewed version as `lab06`.
 - Next: local cache of rates and wallet for offline use, and a connectivity check that disables actions offline.
+
+## Lab 07
+- Registration and login connect each user to their own records: every token names one user, and every protected endpoint takes the user id from the token, never from the request.
+- Caller identification in `AuthService.identify()`: signed token `<id>.<version>.<expiry>.<signature>`, then the user row is read on every request (role, disabled, token version).
+- Authorisation rules in one module (`backend/app/authz.py`): own account, wallet and orders; `/users/{id}/...` for that user or ADMIN; `/admin/...` for ADMIN only. New: roles, logout, disable / enable accounts, admin rate correction, `admin_actions` log.
+- Unauthorised requests are refused by the service itself (401 / 403), checked with curl and tests, not only by hiding the Admin tab. A test walks every route and checks each protected one refuses a request without a token.
+- App: create account, Account tab (own orders, log out), Admin tab for admins. Offline the user stays signed in with a banner and sees the last balances the service confirmed, with their time; only a 401 / `ACCOUNT_DISABLED` answer ends the session. Nothing is shown as done without the service's answer.
+- Evidence: 54 backend tests, 22 Flutter tests, `docs/lab07-demo-output.txt` (10 valid and refused paths with curl), `docs/lab07-app-run.txt` and 13 screenshots in `docs/screenshots/lab07/`. Rules and evidence table in `docs/authorisation.md`.
+- Models updated where the code differs: use cases, server and mobile classes, ERD, new identify/authorise flow; design changes 19 to 26.
+- Short note on the Week 07 lecture (DATA ON AIR) in `docs/lecture07-data-on-air.md`: rates could be broadcast, orders can't.
+- Tagged the reviewed version as `lab07`.
+- Next: keep the token and the last data on the phone's disk, and a connectivity check that disables actions offline.

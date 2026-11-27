@@ -2,61 +2,97 @@
 skinparam monochrome true
 skinparam shadowing false
 hide empty members
-title Web service
+title Web service, as built (Lab 07)
 
-class AuthController {
-  POST /auth/register
-  POST /auth/login
+rectangle "HTTP layer (app/main.py)" {
+  class AuthController {
+    POST /auth/register
+    POST /auth/login
+    POST /auth/logout
+    GET /me
+  }
+  class RatesController <<public>> {
+    GET /rates
+  }
+  class WalletController {
+    GET /wallet
+    GET /users/{id}
+    GET /users/{id}/wallet
+    GET /users/{id}/orders
+  }
+  class OrdersController {
+    GET /orders
+    POST /orders
+    GET /orders/{requestId}
+  }
+  class AdminController <<ADMIN only>> {
+    GET /admin/users
+    POST /admin/users/{id}/disable
+    POST /admin/users/{id}/enable
+    PUT /admin/rates/{code}
+    GET /admin/actions
+  }
 }
-class RatesController {
-  GET /rates
+
+class Caller <<identified caller>> {
+  id : int
+  email : String
+  role : USER / ADMIN
 }
-class OrdersController {
-  POST /orders
-  GET /orders/{requestId}
-}
-class WalletController {
-  GET /wallet
-}
-class AuthService {
+class AuthService <<identification>> {
   +register(email, password)
-  +login(email, password)
-  +checkToken(token) : userId
+  +login(email, password) : token, Caller
+  +logout(caller)
+  +identify(authorization) : Caller
+}
+class Authz <<authorisation rules>> {
+  +require_admin(caller)
+  +require_self_or_admin(caller, userId)
+}
+class AccountService {
+  +get(userId)
+  +wallet(userId)
+  +orders(userId)
+}
+class AdminService {
+  +list_users()
+  +set_disabled(userId, flag)
+  +set_rate(code, mid)
+  +actions()
 }
 class RateService {
-  +currentRates()
-  -refreshIfOld()
-}
-class NbpClient {
-  +fetchTableA()
+  +current_rates()
 }
 class OrderService <<decides success>> {
   +execute(userId, order)
   +status(userId, requestId)
-  -validate(order)
 }
 class WalletRepository {
   +balances(userId)
-  +applyAtomically(userId, changes)
-}
-class OrderRepository {
-  +findByRequestId(id)
-  +save(order)
-}
-class RateRepository {
-  +latest()
-  +save(rates, date)
+  +withdraw / deposit
 }
 
 AuthController --> AuthService
-RatesController --> RateService
-OrdersController --> AuthService
-OrdersController --> OrderService
 WalletController --> AuthService
+OrdersController --> AuthService
+AdminController --> AuthService
+AuthService ..> Caller : creates
+WalletController --> Authz
+AdminController --> Authz
+Authz ..> Caller : checks
+RatesController --> RateService
+WalletController --> AccountService
 WalletController --> WalletRepository
-RateService --> RateRepository
-RateService --> NbpClient
+OrdersController --> OrderService
+OrdersController --> AccountService
+AdminController --> AdminService
+AdminService --> AccountService
+AccountService --> WalletRepository
 OrderService --> RateService
 OrderService --> WalletRepository
-OrderService --> OrderRepository
+note bottom of Authz
+  The user id always comes from the token
+  (Caller), never from the request body.
+  Role is read from the database on every request.
+end note
 @enduml

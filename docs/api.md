@@ -9,16 +9,34 @@ Status after Lab 05: all endpoints below are implemented in `backend/`,
 except the NBP call, which is replaced by simulated seed data for now.
 Lab 06: the Flutter app in `mobile/` uses every endpoint below except
 `/auth/register`.
+Lab 07: registration, logout, account and admin endpoints added; every
+endpoint now has an access rule (column "Who"). Rules are in
+`backend/app/authz.py`; the reasons and evidence in
+[authorisation.md](authorisation.md).
 
-| Method | Path | Token | Read / action | What it does |
+| Method | Path | Who may call | Read / action | What it does |
 | --- | --- | --- | --- | --- |
-| GET | `/health` | no | read | Service and database are up; shows the Git revision. |
-| POST | `/auth/register` | no | action | Create a user. The new wallet gets 1000.00 PLN. Returns a token. |
-| POST | `/auth/login` | no | action | Returns a token. |
-| GET | `/rates` | no | read | Current mid rates with their NBP date and a `stale` flag. |
-| GET | `/wallet` | yes | read | Balances of the logged-in user. |
-| POST | `/orders` | yes | action | Buy or sell. Runs at most once per `requestId`. |
-| GET | `/orders/{requestId}` | yes | read | Status of an order: `CONFIRMED`, `REJECTED` or `NOT_FOUND`. |
+| GET | `/health` | anyone | read | Service and database are up; shows the Git revision. |
+| POST | `/auth/register` | anyone | action | Create a user with role `USER` (the role can't be sent). The new wallet gets 1000.00 PLN. Returns a token. |
+| POST | `/auth/login` | anyone | action | Returns a token and the identified user `{id, email, role}`. |
+| POST | `/auth/logout` | token | action | Ends **all** sessions of this user: every token issued so far stops working. |
+| GET | `/me` | token | read | The caller's own account `{id, email, role, disabled, createdAt}`. |
+| GET | `/rates` | anyone | read | Current mid rates with their NBP date and a `stale` flag. Public, read-only. |
+| GET | `/wallet` | token | read | Balances of the caller. |
+| GET | `/orders` | token | read | The caller's own orders, newest first (max 50). |
+| POST | `/orders` | token | action | Buy or sell **on the caller's own wallet**. Runs at most once per `requestId`. |
+| GET | `/orders/{requestId}` | token, owner of the order | read | `CONFIRMED`, `REJECTED` or `NOT_FOUND` (also for another user's order). |
+| GET | `/users/{id}` | token, that user or ADMIN | read | One account. |
+| GET | `/users/{id}/wallet` | token, that user or ADMIN | read | That user's balances. |
+| GET | `/users/{id}/orders` | token, that user or ADMIN | read | That user's orders. |
+| GET | `/admin/users` | ADMIN | read | All accounts. |
+| POST | `/admin/users/{id}/disable` | ADMIN | action | Disable an account; its tokens stop working at once. Not allowed on yourself. |
+| POST | `/admin/users/{id}/enable` | ADMIN | action | Enable it again (old tokens stay invalid; the user logs in again). |
+| PUT | `/admin/rates/{code}` | ADMIN | action | Correct the latest stored rate, body `{"mid": 4.2710}`. |
+| GET | `/admin/actions` | ADMIN | read | Who did which admin action and when (`admin_actions` table). |
+
+The user id an operation works on always comes from the token, never from the
+body: `POST /orders` with a `userId` field is refused (400, unknown field).
 
 ## Examples
 
@@ -71,13 +89,23 @@ If the same `requestId` comes again with the same order, the server doesn't
 run it a second time. It sends back the answer it saved the first time,
 with the same status code and the header `Idempotent-Replayed: true`.
 
+`POST /auth/login` (Lab 07)
+
+```json
+{ "token": "3.0.1795819652.mJ0w...", "user": { "id": 3, "email": "ola@example.com", "role": "USER" } }
+```
+
+The token is `<user id>.<token version>.<expiry, Unix time>.<HMAC-SHA256 signature>`.
+Changing any part breaks the signature. The token version is raised by
+logout and by "disable", which is how those end sessions before expiry.
+
 ## Headers the app sends (Lab 06)
 
 | Header | Value | Why |
 | --- | --- | --- |
 | `Authorization` | `Bearer <token>` | Endpoints marked "token" |
 | `Content-Type` | `application/json` | Requests with a body |
-| `X-Client` | `currency-exchange-mobile/0.6.0 (android)` (or `ios`, `web`) | The service logs it, so the log shows the request came from the app |
+| `X-Client` | `currency-exchange-mobile/0.7.0 (android)` (or `ios`, `web`) | The service logs it, so the log shows the request came from the app |
 
 The browser (web) build of the app also needs CORS. It is off unless
 `CORS_ORIGINS` is set in `backend/.env`; the Android app does not use it.
@@ -100,8 +128,13 @@ Every error that is not an order result has the same shape. The app reads
 | `INVALID_AMOUNT` | 400 | Amount ≤ 0, more than 2 decimals, or over 1 000 000 | Show "check the amount" |
 | `INVALID_RATE` | 400 | `seenRate` ≤ 0 or more than 4 decimals | Reload rates |
 | `UNKNOWN_CURRENCY` | 400 | Not 3 letters, PLN, or not in table A | Reload rates |
-| `UNAUTHORIZED` | 401 | Token missing or wrong | Go to login |
+| `UNAUTHORIZED` | 401 | Token missing, wrong or edited; user no longer exists | Go to login |
 | `TOKEN_EXPIRED` | 401 | Token too old | Log in again |
+| `TOKEN_REVOKED` | 401 | Token from before a logout or a disable (Lab 07) | Log in again |
+| `ACCOUNT_DISABLED` | 403 | Account disabled by an admin: any token, and login with the right password (Lab 07) | Go to login, show "account disabled" |
+| `FORBIDDEN` | 403 | Signed in, but not allowed: another user's `/users/{id}...`, or `/admin/...` without role ADMIN (Lab 07) | Show "not allowed"; stay signed in |
+| `USER_NOT_FOUND` | 404 | Admin asks for a user id that doesn't exist (Lab 07) | Reload the user list |
+| `CANNOT_DISABLE_SELF` | 400 | Admin tries to disable their own account (Lab 07) | Bug in the app |
 | `BAD_CREDENTIALS` | 401 | Wrong email or password at login | Show "wrong email or password" |
 | `EMAIL_TAKEN` | 409 | Register with an existing email | Show "already registered" |
 | `REQUEST_ID_REUSED` | 409 | Same `requestId`, different order | Make a new `requestId` |
@@ -116,8 +149,9 @@ Every error that is not an order result has the same shape. The app reads
 | 200 | OK, order confirmed (also for a repeated `requestId`) |
 | 201 | User created |
 | 400 | Bad input (nothing is saved) |
-| 401 | Missing or wrong token, wrong password |
-| 404 | Order not found (`GET /orders/{id}`, body `{"status": "NOT_FOUND"}`) |
+| 401 | Caller not identified: missing, wrong, expired or revoked token; wrong password |
+| 403 | Caller identified but not allowed (`FORBIDDEN`), or account disabled |
+| 404 | Order not found (`GET /orders/{id}`, body `{"status": "NOT_FOUND"}`), or `USER_NOT_FOUND` for an admin |
 | 409 | Order rejected (rate changed, not enough money), email taken, `requestId` reused |
 | 503 | No saved rates at all |
 

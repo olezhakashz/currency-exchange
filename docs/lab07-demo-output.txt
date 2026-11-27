@@ -1,0 +1,391 @@
+##########  VALID ACCESS PATHS  ##########
+
+=== V1. Rates are public and read-only: no token needed ===
+$ GET /rates 
+HTTP 200
+{
+    "effectiveDate": "2026-11-06",
+    "stale": true,
+    "rates": [
+        {
+            "code": "CHF",
+            "mid": 4.531
+        },
+        {
+            "code": "CZK",
+            "mid": 0.1702
+        },
+        {
+            "code": "EUR",
+            "mid": 4.265
+        },
+        {
+            "code": "GBP",
+            "mid": 5.084
+        },
+        {
+            "code": "JPY",
+            "mid": 0.0259
+        },
+        {
+            "code": "NOK",
+            "mid": 0.3528
+        },
+        {
+            "code": "UAH",
+            "mid": 0.0941
+        },
+        {
+            "code": "USD",
+            "mid": 3.912
+        }
+    ]
+}
+
+=== V2. Register a new user (role is always USER) ===
+$ POST /auth/register {"email":"ola.1795739285@example.com","password":"ola-secret-1"}
+HTTP 201
+{
+    "userId": 3,
+    "token": "<58 characters, not printed>"
+}
+
+=== V3. Log in: the answer names the identified caller ===
+$ POST /auth/login {"email":"ola.1795739285@example.com","password":"ola-secret-1"}
+HTTP 200
+{
+    "token": "<58 characters, not printed>",
+    "user": {
+        "id": 3,
+        "email": "ola.1795739285@example.com",
+        "role": "USER"
+    }
+}
+
+=== V4. Own account, wallet and orders (the id comes from the token) ===
+$ GET /me   [token of ola]
+HTTP 200
+{
+    "id": 3,
+    "email": "ola.1795739285@example.com",
+    "role": "USER",
+    "disabled": false,
+    "createdAt": "2026-11-27T00:28:05+00:00"
+}
+
+$ GET /wallet   [token of ola]
+HTTP 200
+{
+    "balances": {
+        "PLN": 1000.0
+    }
+}
+
+$ GET /users/3/wallet   [token of ola]
+HTTP 200
+{
+    "userId": 3,
+    "balances": {
+        "PLN": 1000.0
+    }
+}
+
+=== V5. Data-changing operation on the own wallet ===
+$ POST /orders {"requestId":"b719b93d-6e42-4e63-adc8-61ea014e387c","side":"BUY","currency":"EUR","amount":10.00,"seenRate":4.265}  [token of ola]
+HTTP 200
+{
+    "requestId": "b719b93d-6e42-4e63-adc8-61ea014e387c",
+    "status": "CONFIRMED",
+    "side": "BUY",
+    "currency": "EUR",
+    "amount": 10.0,
+    "rateUsed": 4.265,
+    "plnAmount": 42.65,
+    "balances": {
+        "PLN": 957.35,
+        "EUR": 10.0
+    }
+}
+
+$ GET /orders   [token of ola]
+HTTP 200
+{
+    "orders": [
+        {
+            "requestId": "b719b93d-6e42-4e63-adc8-61ea014e387c",
+            "status": "CONFIRMED",
+            "side": "BUY",
+            "currency": "EUR",
+            "amount": 10.0,
+            "rateUsed": 4.265,
+            "plnAmount": 42.65,
+            "createdAt": "2026-11-27T00:28:07+00:00"
+        }
+    ]
+}
+
+=== V6. Admin: list users, read another user's wallet ===
+$ GET /admin/users   [token of admin]
+HTTP 200
+{
+    "users": [
+        {
+            "id": 1,
+            "email": "demo@example.com",
+            "role": "USER",
+            "disabled": false,
+            "createdAt": "2026-11-27T00:27:11+00:00"
+        },
+        {
+            "id": 2,
+            "email": "admin@example.com",
+            "role": "ADMIN",
+            "disabled": false,
+            "createdAt": "2026-11-27T00:27:11+00:00"
+        },
+        {
+            "id": 3,
+            "email": "ola.1795739285@example.com",
+            "role": "USER",
+            "disabled": false,
+            "createdAt": "2026-11-27T00:28:05+00:00"
+        }
+    ]
+}
+
+$ GET /users/3/wallet   [token of admin]
+HTTP 200
+{
+    "userId": 3,
+    "balances": {
+        "PLN": 957.35,
+        "EUR": 10.0
+    }
+}
+
+##########  REJECTED ACCESS PATHS  ##########
+
+=== R1. No token: wallet and order refused (401) ===
+$ GET /wallet 
+HTTP 401
+{
+    "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Missing header 'Authorization: Bearer <token>'."
+    }
+}
+
+$ POST /orders {"requestId":"410f2ad4-cc9e-42b9-81f6-ac7a1cb1e3ba","side":"BUY","currency":"EUR","amount":10,"seenRate":4.265}
+HTTP 401
+{
+    "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Missing header 'Authorization: Bearer <token>'."
+    }
+}
+
+=== R2. Edited token: user id changed to the demo user, signature kept (401) ===
+$ GET /wallet   [token of ola, edited to user 1]
+HTTP 401
+{
+    "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Token is not valid."
+    }
+}
+
+=== R3. Ola asks for the demo user's account and wallet by id (403) ===
+$ GET /users/1   [token of ola]
+HTTP 403
+{
+    "error": {
+        "code": "FORBIDDEN",
+        "message": "You can only access your own account."
+    }
+}
+
+$ GET /users/1/wallet   [token of ola]
+HTTP 403
+{
+    "error": {
+        "code": "FORBIDDEN",
+        "message": "You can only access your own account."
+    }
+}
+
+=== R4. Ola tries to put the order on another wallet (unknown field, 400) ===
+$ POST /orders {"requestId":"b41e45a8-d6bd-4766-ba50-658d56a565f1","userId":1,"side":"BUY","currency":"EUR","amount":10,"seenRate":4.265}  [token of ola]
+HTTP 400
+{
+    "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Some fields are missing or have the wrong type.",
+        "details": [
+            {
+                "field": "userId",
+                "problem": "Extra inputs are not permitted"
+            }
+        ]
+    }
+}
+
+=== R5. Demo user asks for Ola's order by its requestId (looks like it doesn't exist, 404) ===
+$ GET /orders/b719b93d-6e42-4e63-adc8-61ea014e387c   [token of demo]
+HTTP 404
+{
+    "requestId": "b719b93d-6e42-4e63-adc8-61ea014e387c",
+    "status": "NOT_FOUND"
+}
+
+=== R6. Registration cannot pick the ADMIN role (400) ===
+$ POST /auth/register {"email":"eve.1795739291@example.com","password":"eve-secret-1","role":"ADMIN"}
+HTTP 400
+{
+    "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Some fields are missing or have the wrong type.",
+        "details": [
+            {
+                "field": "role",
+                "problem": "Extra inputs are not permitted"
+            }
+        ]
+    }
+}
+
+=== R7. Normal user calls admin functions directly (403; nothing changes) ===
+$ GET /admin/users   [token of ola]
+HTTP 403
+{
+    "error": {
+        "code": "FORBIDDEN",
+        "message": "This needs the ADMIN role."
+    }
+}
+
+$ PUT /admin/rates/EUR {"mid":1.0000}  [token of ola]
+HTTP 403
+{
+    "error": {
+        "code": "FORBIDDEN",
+        "message": "This needs the ADMIN role."
+    }
+}
+
+$ POST /admin/users/1/disable   [token of ola]
+HTTP 403
+{
+    "error": {
+        "code": "FORBIDDEN",
+        "message": "This needs the ADMIN role."
+    }
+}
+
+$ sqlite> SELECT currency, mid_e4 FROM rates WHERE currency = 'EUR'
+currency | mid_e4
+EUR | 42650
+
+=== R8. Wrong password (401) ===
+$ POST /auth/login {"email":"ola.1795739285@example.com","password":"wrong-password"}
+HTTP 401
+{
+    "error": {
+        "code": "BAD_CREDENTIALS",
+        "message": "Wrong email or password."
+    }
+}
+
+=== R9. Logout ends the session: the same token is refused (401 TOKEN_REVOKED) ===
+$ POST /auth/logout   [token of ola]
+HTTP 200
+{
+    "status": "LOGGED_OUT"
+}
+
+$ GET /wallet   [token of ola]
+HTTP 401
+{
+    "error": {
+        "code": "TOKEN_REVOKED",
+        "message": "This session was ended (logout). Log in again."
+    }
+}
+
+=== R10. Admin disables Ola: her valid token and her login are refused (403) ===
+$ POST /admin/users/3/disable   [token of admin]
+HTTP 200
+{
+    "id": 3,
+    "email": "ola.1795739285@example.com",
+    "role": "USER",
+    "disabled": true,
+    "createdAt": "2026-11-27T00:28:05+00:00"
+}
+
+$ POST /orders {"requestId":"2001d27f-7863-4d2b-a234-9647513ed508","side":"BUY","currency":"EUR","amount":10,"seenRate":4.265}  [token of ola]
+HTTP 403
+{
+    "error": {
+        "code": "ACCOUNT_DISABLED",
+        "message": "This account is disabled. Contact the administrator."
+    }
+}
+
+$ POST /auth/login {"email":"ola.1795739285@example.com","password":"ola-secret-1"}
+HTTP 403
+{
+    "error": {
+        "code": "ACCOUNT_DISABLED",
+        "message": "This account is disabled. Contact the administrator."
+    }
+}
+
+$ POST /admin/users/3/enable   [token of admin]
+HTTP 200
+{
+    "id": 3,
+    "email": "ola.1795739285@example.com",
+    "role": "USER",
+    "disabled": false,
+    "createdAt": "2026-11-27T00:28:05+00:00"
+}
+
+$ GET /admin/actions   [token of admin]
+HTTP 200
+{
+    "actions": [
+        {
+            "id": 2,
+            "admin": "admin@example.com",
+            "action": "ENABLE_USER",
+            "target": "3",
+            "detail": null,
+            "createdAt": "2026-11-27T00:28:14+00:00"
+        },
+        {
+            "id": 1,
+            "admin": "admin@example.com",
+            "action": "DISABLE_USER",
+            "target": "3",
+            "detail": null,
+            "createdAt": "2026-11-27T00:28:13+00:00"
+        }
+    ]
+}
+
+=== Database: users, orders per user, admin actions ===
+$ sqlite> SELECT id, email, role, disabled, token_version FROM users ORDER BY id
+id | email | role | disabled | token_version
+1 | demo@example.com | USER | 0 | 0
+2 | admin@example.com | ADMIN | 0 | 0
+3 | ola.1795739285@example.com | USER | 0 | 2
+
+$ sqlite> SELECT u.email, o.side, o.currency, o.amount_minor, o.status FROM orders o JOIN users u ON u.id = o.user_id ORDER BY o.created_at
+email | side | currency | amount_minor | status
+ola.1795739285@example.com | BUY | EUR | 1000 | CONFIRMED
+
+$ sqlite> SELECT a.id, u.email AS admin, a.action, a.target, a.created_at FROM admin_actions a JOIN users u ON u.id = a.admin_id ORDER BY a.id
+id | admin | action | target | created_at
+1 | admin@example.com | DISABLE_USER | 3 | 2026-11-27T00:28:13+00:00
+2 | admin@example.com | ENABLE_USER | 3 | 2026-11-27T00:28:14+00:00
+

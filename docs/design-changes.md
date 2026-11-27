@@ -1,5 +1,7 @@
 # Design changes since M1 (tag `part1`, commit 9c29997)
 
+Rows 1 to 15 are from Lab 05, 16 to 18 from Lab 06, 19 to 26 from Lab 07.
+
 M1 is the Part 1 design report (Lab 04). These are the places where the
 code written in Lab 05 differs from that design, and why.
 
@@ -24,6 +26,22 @@ code written in Lab 05 differs from that design, and why.
 | 17 | Request log (Lab 06) | Not specified | One log line per request: method, path, `X-Client` header, status | Shows in the demo that the app's request (not curl) reached the service. |
 | 18 | Offline check on the phone (Lab 06) | `ConnectivityMonitor` blocks the button before sending (S1) | Not yet. The app sends and reacts to the missing answer: "No connection: result not known yet", then asks `GET /orders/{id}` | One code path covers offline, wrong address and server down. The monitor and the local cache come in a later lab. |
 
+| 19 | Roles (Lab 07) | One kind of user | `users.role` = `USER` / `ADMIN`. Registration always makes `USER`; an admin is made only by `seed.py` (`ADMIN_PASSWORD`, `--make-admin`). The role is read from the database on every request, not stored in the token. | The lab asks for administrative functions. Taking the role from the database means a demoted admin loses access on the next request. |
+| 20 | Caller identification (Lab 07) | `checkToken(token) : userId` | `AuthService.identify()` returns a `Caller(id, email, role)`; token is now `<id>.<token_version>.<exp>.<sig>` | Endpoints and rules need the role as well as the id. |
+| 21 | Ending sessions (Lab 07) | Token valid until expiry, no logout | `POST /auth/logout` and admin "disable" raise `users.token_version`; older tokens get `401 TOKEN_REVOKED`. A disabled account gets `403 ACCOUNT_DISABLED` for any token and at login. | Stateless tokens can't be deleted; a version number in the user row ends them without a session table. Logout ends all of the user's sessions, not only this phone's (simpler; noted as a limitation). |
+| 22 | Authorisation rules (Lab 07) | "the user's own wallet" implied | One module `app/authz.py`: own data from the token; `/users/{id}/...` for that user or ADMIN (`403 FORBIDDEN`, checked before the lookup so unknown ids look the same); `/admin/...` for ADMIN only; other users' orders stay `404` (row 10). A test walks all routes and checks each protected one refuses a request without token. | The service must refuse unauthorised calls even if the app has a bug or someone uses curl. |
+| 23 | New endpoints (Lab 07) | Not in M1 | `/auth/logout`, `/me`, `GET /orders`, `/users/{id}`, `/users/{id}/wallet`, `/users/{id}/orders`, `/admin/users`, `/admin/users/{id}/disable` and `/enable`, `PUT /admin/rates/{code}`, `/admin/actions` | Account view in the app, and the admin functions. `PUT /admin/rates` replaces `seed.py --set-rate` with an authorised API call. |
+| 24 | New table `admin_actions` (Lab 07) | Not in M1 | `admin_id`, `action`, `target`, `detail`, `created_at` | Every admin change has an author and a time. |
+| 25 | "Reservations" (Lab 07) | Our topic has orders, not reservations | The lab's "reservations" are our **orders**: the record a user's action creates. Same rules: only the owner sees or makes them. | Course text is generic across topics. |
+| 26 | Signed-in view when offline (Lab 07) | `LocalCache`, `ConnectivityMonitor` (S1) | `Session` in memory: no answer never signs out; a banner says "Offline. Still signed in"; the wallet shows the last balances the **service** confirmed, with their time. Only a 401 / `ACCOUNT_DISABLED` answer ends the session. Logout offline forgets the token on the phone and says the service wasn't told. Still no disk cache: closing the app logs out. | Lab 07 asks to explain the signed-in view during connection loss without inventing success. Disk storage of the token and cache is a later lab. |
+
 The ERD source `docs/diagrams/erd.puml` is updated to match the real
 schema (`backend/app/schema.sql`). `docs/api.md` is updated with the error
 format and codes.
+
+Lab 07: the diagrams that changed are redrawn from the code:
+`docs/diagrams/use-cases.puml` (visitor, user, administrator),
+`classes-server.puml` (Caller, Authz, AccountService, AdminService),
+`classes-mobile.puml` (Session, Account and Admin screens; the parts still
+missing are listed in a note), `erd.puml` (new user columns and
+`admin_actions`) and the new `flow-auth.puml` (identify, then authorise).

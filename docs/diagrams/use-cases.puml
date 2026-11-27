@@ -2,38 +2,53 @@
 left to right direction
 skinparam monochrome true
 skinparam shadowing false
+title Use cases, as built (Lab 07)
 
+actor Visitor
 actor User
+actor Administrator as Admin
 actor "NBP API" as NBP <<external>>
+User -|> Visitor
+Admin -|> User
 
 rectangle "Currency Exchange" {
-  usecase "Log in / register" as UC1
-  usecase "See current rates" as UC2
-  usecase "Convert amount" as UC4
+  usecase "Register" as REG
+  usecase "Log in" as LOGIN
+  usecase "See current rates\n(public, read-only)" as UC2
+  usecase "Log out" as LOGOUT
+  usecase "See own account\nand orders" as ACC
   usecase "See wallet" as UC5
-  usecase "Buy currency" as UC7
-  usecase "Sell currency" as UC8
+  usecase "Buy / sell currency" as UC7
   usecase "Check order status" as UC10
+  usecase "List users,\nsee any wallet" as ADM1
+  usecase "Disable / enable\nan account" as ADM2
+  usecase "Correct a rate" as ADM3
+  usecase "Identify caller\n(token)" as AUTH
+  usecase "Check permission\n(own data / ADMIN)" as PERM
   usecase "Get rates from NBP" as UC11
-  usecase "Check token" as AUTH
-  usecase "Validate order" as VAL
 }
 
-User --> UC1
-User --> UC2
-User --> UC4
+Visitor --> REG
+Visitor --> LOGIN
+Visitor --> UC2
+User --> LOGOUT
+User --> ACC
 User --> UC5
 User --> UC7
-User --> UC8
+Admin --> ADM1
+Admin --> ADM2
+Admin --> ADM3
 
+ACC ..> AUTH : <<include>>
 UC5 ..> AUTH : <<include>>
 UC7 ..> AUTH : <<include>>
-UC8 ..> AUTH : <<include>>
-UC7 ..> VAL : <<include>>
-UC8 ..> VAL : <<include>>
+LOGOUT ..> AUTH : <<include>>
+ADM1 ..> PERM : <<include>>
+ADM2 ..> PERM : <<include>>
+ADM3 ..> PERM : <<include>>
+ACC ..> PERM : <<include>>
+PERM ..> AUTH : <<include>>
 UC10 ..> UC7 : <<extend>>
-UC10 ..> UC8 : <<extend>>
 UC2 ..> UC11 : <<include>>
 UC11 --> NBP
 @enduml
-

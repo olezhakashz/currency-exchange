@@ -2,60 +2,75 @@
 skinparam monochrome true
 skinparam shadowing false
 hide empty members
-title Mobile app
+title Mobile app, as built (Lab 07)
 
-class RatesScreen {
-  +showRates(list)
-  +showCachedLabel(date)
+class CurrencyApp {
+  shows LoginScreen or HomeScreen
+  from Session.signedIn
 }
+class LoginScreen {
+  log in / create account
+  shows why the last session ended
+}
+class HomeScreen {
+  tabs: Rates, Wallet, Account
+  + Admin (only if role ADMIN)
+  OfflineBanner while unreachable
+}
+class RatesScreen
 class WalletScreen {
-  +showBalances(wallet, lastKnown)
+  live balances, or last confirmed
+  balances with their time when offline
 }
 class OrderScreen {
-  +submitOrder(side, currency, amount)
-  +showStatus(status)
-  +disableWhenOffline()
+  POST /orders, GET /orders/{id}
+}
+class AccountScreen {
+  GET /orders, log out
+}
+class AdminScreen {
+  GET /admin/users, disable / enable
 }
 class ApiClient {
   -token
   -timeout = 10s
-  +getRates()
-  +getWallet()
-  +postOrder(order)
-  +getOrderStatus(requestId)
+  +login() / register() / logout()
+  +getMe() / getOrders()
+  +getRates() / getWallet()
+  +postOrder() / getOrderStatus()
+  +adminUsers() / adminSetDisabled()
 }
-class LocalCache {
-  +saveRates(rates, date)
-  +loadRates()
-  +saveWallet(wallet)
-  +loadWallet()
+class Session <<in memory>> {
+  user : UserAccount
+  endedReason
+  lastWallet, lastWalletAt
+  offline : bool
+  +start(user) / end(reason)
+  +walletConfirmed(wallet)
 }
-class ConnectivityMonitor {
-  +isOnline()
-  +onReconnect(callback)
-}
-class PendingOrders {
-  +add(order)
-  +markConfirmed(id)
-  +markRejected(id)
-  +unknownOnes()
-}
-class Order {
-  requestId : UUID
-  side : BUY / SELL
-  currency : String
-  amount : Decimal
-  seenRate : Decimal
-  status : PENDING / UNKNOWN / CONFIRMED / REJECTED
+class UserAccount {
+  id, email, role
 }
 
+CurrencyApp --> Session : listens
+CurrencyApp --> LoginScreen
+CurrencyApp --> HomeScreen
+HomeScreen --> RatesScreen
+HomeScreen --> WalletScreen
+HomeScreen --> AccountScreen
+HomeScreen --> AdminScreen
+RatesScreen --> OrderScreen
+LoginScreen --> ApiClient
 RatesScreen --> ApiClient
-RatesScreen --> LocalCache
 WalletScreen --> ApiClient
-WalletScreen --> LocalCache
 OrderScreen --> ApiClient
-OrderScreen --> ConnectivityMonitor
-OrderScreen --> PendingOrders
-PendingOrders o-- "0..*" Order
-ConnectivityMonitor ..> PendingOrders : on reconnect\ncheck UNKNOWN
+AccountScreen --> ApiClient
+AdminScreen --> ApiClient
+ApiClient --> Session : no answer = offline\n401 / ACCOUNT_DISABLED = end
+Session o-- UserAccount
+note bottom of Session
+  Planned in M1 but not built yet:
+  LocalCache (on disk), ConnectivityMonitor,
+  PendingOrders. The token lives in memory only.
+end note
 @enduml

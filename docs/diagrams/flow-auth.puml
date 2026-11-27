@@ -1,0 +1,40 @@
+@startuml flow-auth
+skinparam monochrome true
+skinparam shadowing false
+title Every protected request: identify, then authorise (Lab 07)
+
+actor "Phone / curl" as C
+participant "Controller" as H
+participant "AuthService.identify" as A
+database "users" as U
+participant "authz rule" as Z
+participant "Service" as S
+
+C -> H : request + Authorization: Bearer <uid.ver.exp.sig>
+H -> A : identify(header)
+alt no header / bad signature / edited id
+  A --> C : 401 UNAUTHORIZED
+else expired
+  A --> C : 401 TOKEN_EXPIRED
+else signature ok
+  A -> U : SELECT role, disabled, token_version WHERE id = uid
+  alt disabled
+    A --> C : 403 ACCOUNT_DISABLED
+  else token_version differs (logout / disabled before)
+    A --> C : 401 TOKEN_REVOKED
+  else ok
+    A --> H : Caller(id, email, role)
+    H -> Z : require_admin / require_self_or_admin
+    alt not allowed
+      Z --> C : 403 FORBIDDEN (nothing read or changed)
+    else allowed
+      H -> S : operation(caller.id, ...)
+      S --> C : 200 / 409 / 404 ...
+    end
+  end
+end
+note over C, S
+  The phone hiding a button changes nothing here:
+  the same checks run for every request.
+end note
+@enduml

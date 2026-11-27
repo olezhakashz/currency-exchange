@@ -3,7 +3,7 @@ skinparam monochrome true
 skinparam shadowing false
 hide circle
 skinparam linetype ortho
-title Database (ERD), as built in Lab 05 (SQLite)
+title Database (ERD), as built in Lab 07 (SQLite)
 
 entity "users" as users {
   *id : INTEGER <<PK>>
@@ -11,6 +11,9 @@ entity "users" as users {
   *email : TEXT <<unique>>
   *password_hash : TEXT
   *created_at : TEXT (ISO time)
+  *role : USER / ADMIN  (Lab 07)
+  *disabled : 0 / 1  (Lab 07)
+  *token_version : INTEGER  (Lab 07)
 }
 
 entity "balances" as balances {
@@ -45,6 +48,17 @@ entity "rates" as rates {
   *fetched_at : TEXT (ISO time)
 }
 
+entity "admin_actions  (Lab 07)" as admin_actions {
+  *id : INTEGER <<PK>>
+  --
+  *admin_id : INTEGER <<FK>>
+  *action : DISABLE_USER / ENABLE_USER / SET_RATE
+  *target : TEXT
+  detail : TEXT
+  *created_at : TEXT (ISO time)
+}
+
 users ||--o{ balances
 users ||--o{ orders
+users ||--o{ admin_actions : performed by
 @enduml

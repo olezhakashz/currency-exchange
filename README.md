@@ -45,6 +45,8 @@ docs/architecture.md     architecture sketch, data owners
 docs/user-journeys.md    normal and broken journeys
 docs/risks.md            initial risk list
 docs/lab-log.md          short note after each lab
+docs/authorisation.md    who may do what, offline signed-in view, evidence (Lab 07)
+docs/diagrams/           PlantUML models (use cases, classes, ERD, flows)
 backend/                 web service
 mobile/                  mobile app
 ```
@@ -73,13 +75,33 @@ Start the backend first, then:
 ```bash
 cd mobile
 flutter pub get
-flutter test                                   # 13 tests
+flutter test                                   # 22 tests
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000   # Android emulator
 ```
 
-Log in as `demo@example.com` with the `DEMO_PASSWORD` from `backend/.env`.
+Log in as `demo@example.com` with the `DEMO_PASSWORD` from `backend/.env`,
+or create an account on the login screen ("No account? Create one").
+`admin@example.com` with `ADMIN_PASSWORD` is the administrator.
 What each screen shows while loading, on success and on errors:
 [docs/mobile-states.md](docs/mobile-states.md).
+
+## Accounts and access (Lab 07)
+
+Users register and log in; every request that touches a user's data is
+identified by its token and checked by the service, whatever the app shows.
+
+| Who | May do |
+| --- | --- |
+| Visitor (no token) | Register, log in, read exchange rates (public, read-only data) |
+| USER | Own account, own wallet, own orders (buy / sell), log out |
+| ADMIN | Everything a USER may do on their own wallet, plus: list users, read any account, wallet and orders, disable / enable accounts, correct a rate |
+
+Refused requests get `401` (caller not identified: no token, edited,
+expired or revoked) or `403` (identified but not allowed, or account
+disabled). When the phone loses the connection the user stays signed in and
+sees only what the service last confirmed. Details, the rule table and the
+evidence: [docs/authorisation.md](docs/authorisation.md). The API with the
+"who may call" column: [docs/api.md](docs/api.md).
 
 ## README outline (sections to fill in over the semester)
 
@@ -89,7 +111,7 @@ What each screen shows while loading, on success and on errors:
 4. Technology choices and reasons
 5. How to run the backend
 6. How to run the mobile app
-7. API endpoints
+7. API endpoints and access rules
 8. Handling connectivity problems (cache, retries, idempotent orders)
 9. Tests
 10. Known limitations
