@@ -9,7 +9,12 @@ CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     email         TEXT    NOT NULL UNIQUE,
     password_hash TEXT    NOT NULL,
-    created_at    TEXT    NOT NULL
+    created_at    TEXT    NOT NULL,
+    -- Lab 07: authorisation. The role is never taken from the request body.
+    role          TEXT    NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'ADMIN')),
+    disabled      INTEGER NOT NULL DEFAULT 0 CHECK (disabled IN (0, 1)),
+    -- Part of every token. +1 on logout or disable, so older tokens stop working.
+    token_version INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS balances (
@@ -43,3 +48,13 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
+
+-- Lab 07: who changed what through the admin endpoints.
+CREATE TABLE IF NOT EXISTS admin_actions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_id   INTEGER NOT NULL REFERENCES users(id),
+    action     TEXT    NOT NULL,              -- DISABLE_USER / ENABLE_USER / SET_RATE
+    target     TEXT    NOT NULL,              -- user id or currency code
+    detail     TEXT,
+    created_at TEXT    NOT NULL
+);

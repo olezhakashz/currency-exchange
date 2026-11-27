@@ -59,7 +59,7 @@ def install_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(_: Request, exc: StarletteHTTPException):
-        codes = {404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED"}
+        codes = {403: "FORBIDDEN", 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED"}
         return JSONResponse(
             error_body(codes.get(exc.status_code, "HTTP_ERROR"), str(exc.detail)),
             status_code=exc.status_code,

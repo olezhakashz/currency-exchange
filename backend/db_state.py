@@ -1,4 +1,4 @@
-"""Print what the database holds now: orders and balances (Lab 06 evidence).
+"""Print what the database holds now: users, orders and balances (Lab 06/07 evidence).
 
     python db_state.py            (from backend/, uses DATABASE_PATH from .env)
 """
@@ -7,10 +7,13 @@ import sqlite3
 from app.config import get_settings
 
 QUERIES = [
-    "SELECT request_id, side, currency, amount_minor, seen_rate_e4, rate_used_e4, pln_minor, status, reason, created_at "
+    "SELECT id, email, role, disabled, token_version FROM users ORDER BY id",
+    "SELECT request_id, user_id, side, currency, amount_minor, seen_rate_e4, rate_used_e4, pln_minor, status, reason, created_at "
     "FROM orders ORDER BY created_at",
     "SELECT u.email, b.currency, b.amount_minor FROM balances b JOIN users u ON u.id = b.user_id "
     "ORDER BY u.email, b.currency",
+    "SELECT a.id, u.email AS admin, a.action, a.target, a.detail, a.created_at FROM admin_actions a "
+    "JOIN users u ON u.id = a.admin_id ORDER BY a.id",
     "SELECT currency, effective_date, mid_e4 FROM rates WHERE currency = 'EUR' ORDER BY effective_date",
 ]
 

@@ -5,6 +5,11 @@
     python seed.py --set-rate EUR 4.2710
                                    simulate a new NBP rate for one currency
                                    (used in the demo to show RATE_CHANGED)
+    python seed.py --make-admin someone@example.com
+                                   give an existing user the ADMIN role (Lab 07)
+
+Lab 07: if ADMIN_PASSWORD is set in backend/.env, the user admin@example.com
+is created with the ADMIN role. There is no API to become an admin.
 
 The sample rates in data/nbp-table-a-sample.json are simulated values in the
 same JSON shape as the real NBP table A response.
@@ -25,6 +30,7 @@ from app.money import rate_to_e4
 
 SAMPLE = Path(__file__).with_name("data") / "nbp-table-a-sample.json"
 DEMO_EMAIL = "demo@example.com"
+ADMIN_EMAIL = "admin@example.com"
 
 
 def load_rates(conn, table: dict) -> int:
@@ -43,6 +49,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--reset", action="store_true", help="delete the database file first")
     parser.add_argument("--set-rate", nargs=2, metavar=("CODE", "MID"), help="change the latest rate of one currency")
+    parser.add_argument("--make-admin", metavar="EMAIL", help="give an existing user the ADMIN role")
     args = parser.parse_args()
 
     try:
@@ -68,22 +75,28 @@ def main() -> int:
         print(f"{code} latest rate set to {mid}" if cur.rowcount else f"No rate for {code}; run seed first")
         return 0 if cur.rowcount else 1
 
+    if args.make_admin:
+        cur = conn.execute("UPDATE users SET role = 'ADMIN' WHERE email = ?", (args.make_admin.strip().lower(),))
+        print(f"{args.make_admin} is now ADMIN" if cur.rowcount else f"No user {args.make_admin}")
+        return 0 if cur.rowcount else 1
+
     table = json.loads(SAMPLE.read_text(encoding="utf-8"))[0]
     n = load_rates(conn, table)
     print(f"Loaded {n} rates for {table['effectiveDate']} from {SAMPLE.name} (simulated data)")
 
-    password = os.environ.get("DEMO_PASSWORD", "")
-    if len(password) < 8 or password.startswith("change-me"):
-        print("DEMO_PASSWORD not set in backend/.env, so no demo user was created.")
-    else:
-        auth = AuthService(conn, settings.secret_key, settings.token_ttl_seconds, settings.start_balance_pln)
+    auth = AuthService(conn, settings.secret_key, settings.token_ttl_seconds, settings.start_balance_pln)
+    for email, var, role in ((DEMO_EMAIL, "DEMO_PASSWORD", "USER"), (ADMIN_EMAIL, "ADMIN_PASSWORD", "ADMIN")):
+        password = os.environ.get(var, "")
+        if len(password) < 8 or password.startswith("change-me"):
+            print(f"{var} not set in backend/.env, so {email} was not created.")
+            continue
         try:
-            uid = auth.register(DEMO_EMAIL, password)
-            print(f"Created demo user {DEMO_EMAIL} (id {uid}) with {settings.start_balance_pln} PLN")
+            uid = auth.register(email, password, role=role)
+            print(f"Created {role} {email} (id {uid}) with {settings.start_balance_pln} PLN")
         except ApiError as e:
             if e.code != "EMAIL_TAKEN":
                 raise
-            print(f"Demo user {DEMO_EMAIL} already exists")
+            print(f"User {email} already exists")
 
     print(f"Database ready: {settings.database_path}")
     conn.close()

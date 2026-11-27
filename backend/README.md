@@ -50,7 +50,8 @@ With the service running, in a second terminal (also in `backend/`):
 
 ```bash
 bash demo.sh | tee ../docs/lab05-demo-output.txt   # end-to-end demo with curl
-python -m pytest -v                                 # 31 automated tests
+python -m pytest -v                                 # 54 automated tests
+bash demo_auth.sh | tee ../docs/lab07-demo-output.txt   # Lab 07: valid and refused access
 python db_state.py                                  # orders and balances stored now
 ```
 
@@ -64,20 +65,34 @@ The tests use their own temporary database, so they don't touch
 | `app/schema.sql` | Tables and constraints |
 | `app/main.py` | HTTP endpoints (controllers) and request models |
 | `app/services.py` | `RateService`, `WalletRepository`, `OrderService` (decides if an order succeeded) |
-| `app/auth.py` | `AuthService`: password hashing, signed tokens |
+| `app/auth.py` | `AuthService`: password hashing, signed tokens, identifies the caller (`Caller`), logout |
+| `app/authz.py` | Authorisation rules: own data, that user or ADMIN, ADMIN only (Lab 07) |
+| `app/accounts.py` | `AccountService` (accounts, wallets, orders by user) and `AdminService` (Lab 07) |
 | `app/errors.py` | One error format for the whole API |
 | `app/money.py` | Exact money maths (integers in the DB) |
 | `app/config.py` | Reads settings from environment / `.env` |
 | `seed.py` | Creates the database and test data |
 | `data/nbp-table-a-sample.json` | Simulated rates in the NBP table A JSON shape |
 | `demo.sh` | End-to-end demo script |
-| `db_state.py` | Prints the stored orders and balances (Lab 06 evidence) |
-| `tests/test_api.py` | Automated tests |
+| `db_state.py` | Prints users, orders, balances and admin actions (Lab 06/07 evidence) |
+| `demo_auth.sh` | Lab 07 demo: registration, login, valid and refused access paths |
+| `tests/test_api.py`, `test_lab06.py`, `test_lab07.py` | Automated tests (Lab 07: access paths) |
 | `.env.example` | Which settings exist (the real `.env` is ignored by Git) |
+
+## Users and roles (Lab 07)
+
+`seed.py` creates `demo@example.com` (role USER, password `DEMO_PASSWORD`) and
+`admin@example.com` (role ADMIN, password `ADMIN_PASSWORD`) from `.env`.
+Anyone can register through the API, always as USER. To make an existing
+user an admin: `python seed.py --make-admin someone@example.com`.
+
+A database made in Lab 05/06 gets the new columns automatically when the
+service starts; `python seed.py --reset` is still the cleanest start.
 
 ## Useful commands
 
 ```bash
 python seed.py --set-rate EUR 4.2710   # pretend NBP published a new EUR rate
+                                       # (or, as admin: PUT /admin/rates/EUR {"mid": 4.2710})
 python seed.py --reset                 # start again with a clean database
 ```
