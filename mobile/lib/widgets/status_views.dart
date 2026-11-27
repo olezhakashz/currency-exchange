@@ -40,6 +40,9 @@ class ProblemText {
             'The service received the request and refused the input. Nothing was saved.'),
         ProblemKind.auth => const ProblemText(Icons.lock_outline,
             'Please log in again', 'Your session is not valid any more.'),
+        ProblemKind.forbidden => const ProblemText(Icons.block,
+            'Not allowed for your account',
+            'The service checked your account and refused this. Nothing was changed.'),
         ProblemKind.conflict => const ProblemText(Icons.sync_problem,
             'The service refused the request', 'Start again with a new request.'),
         ProblemKind.server => const ProblemText(Icons.cloud_off,
@@ -93,3 +96,38 @@ class ProblemView extends StatelessWidget {
     );
   }
 }
+
+/// Lab 07: shown on every signed-in screen while the service can't be reached.
+/// The user stays signed in; nothing is shown as done without an answer.
+class OfflineBanner extends StatelessWidget {
+  const OfflineBanner({super.key, required this.email, this.walletAt});
+  final String email;
+  final DateTime? walletAt;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        key: const Key('offline-banner'),
+        color: Colors.blueGrey.shade700,
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Row(children: [
+              const Icon(Icons.wifi_off, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Offline. Still signed in as $email. '
+                  '${walletAt == null ? 'No balances confirmed yet.' : 'Balances are from ${hhmm(walletAt!)}.'} '
+                  'Orders get a result only when the service answers.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+}
+
+String hhmm(DateTime t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:${t.second.toString().padLeft(2, '0')}';

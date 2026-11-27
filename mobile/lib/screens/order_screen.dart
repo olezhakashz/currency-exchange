@@ -106,6 +106,11 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   void _show(OrderResult r) {
+    // Balances in a CONFIRMED answer come from the service, so they may be
+    // kept as the last confirmed wallet (shown when offline, Lab 07).
+    if (r.status == 'CONFIRMED' && r.balances.isNotEmpty) {
+      widget.api.session.walletConfirmed(Wallet(r.balances));
+    }
     if (!mounted) return;
     setState(() {
       _result = r;

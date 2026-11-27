@@ -1,4 +1,8 @@
 // READ path with a token: GET /wallet.
+//
+// Lab 07: with no connection, the screen shows the last balances the service
+// confirmed, clearly marked with their time, instead of an empty error. It
+// never computes balances on the phone.
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -43,6 +47,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Wallet'), actions: [
           IconButton(
+              key: const Key('refresh'),
               tooltip: 'Refresh',
               onPressed: _loading ? null : _load,
               icon: const Icon(Icons.refresh)),
@@ -53,22 +58,46 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _body() {
     if (_loading) return const LoadingView('Loading wallet...');
     final p = _problem;
+    final s = widget.api.session;
+    final offline = p != null && !p.reachedService;
+    if (offline && s.lastWallet != null) {
+      return _list(s.lastWallet!,
+          key: const Key('wallet-cached'),
+          note: 'Not updated: no connection to the service. These are the balances the service '
+              'last confirmed, at ${hhmm(s.lastWalletAt!)}. Orders sent since then may not be in them.',
+          warn: true);
+    }
     if (p != null) return ProblemView(p, onRetry: _load);
-    final b = _wallet!.balances;
+    return _list(_wallet!,
+        key: const Key('wallet-live'), note: 'Balances as stored by the service. Pull down to refresh.');
+  }
+
+  Widget _list(Wallet w, {required Key key, required String note, bool warn = false}) {
+    final b = w.balances;
     final codes = b.keys.toList()
       ..sort((x, y) => x == 'PLN' ? -1 : (y == 'PLN' ? 1 : x.compareTo(y)));
     return RefreshIndicator(
+      key: key,
       onRefresh: _load,
       child: ListView(children: [
+        if (warn)
+          ListTile(
+            leading: Icon(Icons.history, color: Colors.orange.shade800),
+            title: Text('Last confirmed balances', style: TextStyle(color: Colors.orange.shade800)),
+            subtitle: Text(note),
+          ),
         for (final c in codes)
           ListTile(
             key: Key('balance-$c'),
             leading: const Icon(Icons.account_balance_wallet_outlined),
             title: Text(c),
-            trailing: Text(money(b[c]!), style: Theme.of(context).textTheme.titleMedium),
+            trailing: Text(money(b[c]!),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(color: warn ? Colors.grey.shade600 : null)),
           ),
-        const ListTile(
-            subtitle: Text('Balances as stored by the service. Pull down to refresh.')),
+        if (!warn) ListTile(subtitle: Text(note)),
       ]),
     );
   }

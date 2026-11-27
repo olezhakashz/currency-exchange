@@ -99,3 +99,19 @@ String newRequestId([Random? random]) {
 }
 
 String money(num v) => v.toStringAsFixed(2);
+
+/// The signed-in user as the service knows them (Lab 07). The role decides
+/// only what the app *shows*; the service checks the role again on every call.
+class UserAccount {
+  const UserAccount(this.id, this.email, this.role, {this.disabled = false});
+  final int id;
+  final String email;
+  final String role;
+  final bool disabled;
+
+  bool get isAdmin => role == 'ADMIN';
+
+  factory UserAccount.fromJson(Map<String, dynamic> j) => UserAccount(
+      j['id'] as int, j['email'] as String, j['role'] as String,
+      disabled: j['disabled'] as bool? ?? false);
+}

@@ -5,7 +5,13 @@
 //   - validation  : the service answered 400 (the input is wrong, nothing saved)
 //   - noConnection: no answer at all (offline, wrong address, server down)
 //   - timeout     : no answer within 10 s (for an order: result unknown)
-//   - auth, conflict, server: the service answered with another error
+//   - auth     : 401, or 403 ACCOUNT_DISABLED: the session is over (Lab 07)
+//   - forbidden: 403 FORBIDDEN: signed in, but this caller may not do that
+//   - conflict, server: the service answered with another error
+//
+// Lab 07: the client keeps the [Session]. Any HTTP answer marks the service
+// reachable; no answer marks it unreachable but keeps the user signed in.
+// Only an auth answer to a request that carried the token ends the session.
 //
 // An order that the service refused (409 RATE_CHANGED / INSUFFICIENT_FUNDS)
 // is NOT an exception: it is a normal [OrderResult] with status REJECTED.
@@ -16,8 +22,9 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'session.dart';
 
-enum ProblemKind { validation, noConnection, timeout, auth, conflict, server }
+enum ProblemKind { validation, noConnection, timeout, auth, forbidden, conflict, server }
 
 class FieldProblem {
   const FieldProblem(this.field, this.problem);
@@ -52,26 +59,87 @@ class ApiClient {
     this.timeout = const Duration(seconds: 10),
     this.readAttempts = 3,
     this.retryDelay = const Duration(seconds: 1),
-  }) : _http = client ?? http.Client();
+    Session? session,
+  })  : _http = client ?? http.Client(),
+        session = session ?? Session();
 
   String baseUrl;
   final Duration timeout;
   final int readAttempts;
   final Duration retryDelay;
   final http.Client _http;
+  final Session session;
   String? token;
 
   /// Sent as X-Client so the service log shows which client made a request.
   static final String clientName =
-      'currency-exchange-mobile/0.6.0 (${kIsWeb ? 'web' : defaultTargetPlatform.name})';
+      'currency-exchange-mobile/0.7.0 (${kIsWeb ? 'web' : defaultTargetPlatform.name})';
 
   // ---------- endpoints ----------
 
-  Future<String> login(String email, String password) async {
+  Future<UserAccount> login(String email, String password) async {
     final res = await _send('POST', '/auth/login',
         body: {'email': email, 'password': password});
+    final body = _json(res) as Map<String, dynamic>;
+    token = body['token'] as String;
+    final user = UserAccount.fromJson(body['user'] as Map<String, dynamic>);
+    session.start(user);
+    return user;
+  }
+
+  /// Creates the account (role USER, chosen by the service) and signs in.
+  Future<UserAccount> register(String email, String password) async {
+    final res = await _send('POST', '/auth/register',
+        body: {'email': email, 'password': password}, okStatuses: const {201});
     token = (_json(res) as Map<String, dynamic>)['token'] as String;
-    return token!;
+    final user = await getMe();
+    session.start(user);
+    return user;
+  }
+
+  Future<UserAccount> getMe() async {
+    final res = await _read('/me', auth: true);
+    return UserAccount.fromJson(_json(res) as Map<String, dynamic>);
+  }
+
+  /// Ends the session on the service (all tokens of this user stop working)
+  /// and on the phone. Returns false when the service could not be told
+  /// (no connection): the phone forgets the token anyway.
+  Future<bool> logout() async {
+    var told = true;
+    try {
+      await _send('POST', '/auth/logout', auth: true);
+    } on ApiProblem catch (p) {
+      // Any answer (even 401: already ended) means the service knows.
+      told = p.reachedService;
+    }
+    token = null;
+    session.end(told ? 'LOGGED_OUT' : 'LOGGED_OUT_OFFLINE');
+    return told;
+  }
+
+  /// The caller's own orders, newest first (GET /orders).
+  Future<List<OrderResult>> getOrders() async {
+    final res = await _read('/orders', auth: true);
+    return [
+      for (final o in (_json(res) as Map<String, dynamic>)['orders'] as List)
+        OrderResult.fromJson(o as Map<String, dynamic>),
+    ];
+  }
+
+  // ---------- administration (the service refuses these for non-admins) ----------
+
+  Future<List<UserAccount>> adminUsers() async {
+    final res = await _read('/admin/users', auth: true);
+    return [
+      for (final u in (_json(res) as Map<String, dynamic>)['users'] as List)
+        UserAccount.fromJson(u as Map<String, dynamic>),
+    ];
+  }
+
+  Future<UserAccount> adminSetDisabled(int userId, bool disabled) async {
+    final res = await _send('POST', '/admin/users/$userId/${disabled ? 'disable' : 'enable'}', auth: true);
+    return UserAccount.fromJson(_json(res) as Map<String, dynamic>);
   }
 
   Future<RatesTable> getRates() async {
@@ -81,7 +149,9 @@ class ApiClient {
 
   Future<Wallet> getWallet() async {
     final res = await _read('/wallet', auth: true);
-    return Wallet.fromJson(_json(res) as Map<String, dynamic>);
+    final w = Wallet.fromJson(_json(res) as Map<String, dynamic>);
+    session.walletConfirmed(w);
+    return w;
   }
 
   /// Sends one buy/sell order. Never retried automatically: if no answer
@@ -139,16 +209,25 @@ class ApiClient {
       final streamed = await _http.send(req).timeout(timeout);
       res = await http.Response.fromStream(streamed).timeout(timeout);
     } on TimeoutException {
+      session.unreachable();
       throw ApiProblem(ProblemKind.timeout, 'TIMEOUT',
           'The service did not answer within ${timeout.inSeconds} s.');
     } on http.ClientException catch (e) {
       // Socket errors on Android/iOS and fetch errors on web all end up here.
+      session.unreachable();
       throw ApiProblem(ProblemKind.noConnection, 'NO_CONNECTION',
           'Could not reach the service at $baseUrl (${e.message}).');
     }
 
+    session.reachable();
     if (okStatuses.contains(res.statusCode)) return res;
-    throw _problemFrom(res, _tryJson(res));
+    final problem = _problemFrom(res, _tryJson(res));
+    // The service says this token is no good: the session is over.
+    if (auth && problem.kind == ProblemKind.auth) {
+      token = null;
+      session.end(problem.code);
+    }
+    throw problem;
   }
 
   ApiProblem _problemFrom(http.Response res, Object? body) {
@@ -164,6 +243,8 @@ class ApiClient {
     final kind = switch (res.statusCode) {
       400 => ProblemKind.validation,
       401 => ProblemKind.auth,
+      403 when code == 'ACCOUNT_DISABLED' => ProblemKind.auth,
+      403 => ProblemKind.forbidden,
       409 => ProblemKind.conflict,
       _ => ProblemKind.server,
     };
